@@ -30,11 +30,11 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
   const handleDownload = () => {
     setDownloadInitiated(true);
     // Direct link to the compiled Android APK
-    window.location.href = '/CineCut-Release-v2.4.0.apk';
+    window.location.href = '/CincutVideoEdittorPro-v1.0.0.apk';
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.origin + '/CineCut-Release-v2.4.0.apk');
+    navigator.clipboard.writeText(window.location.origin + '/CincutVideoEdittorPro-v1.0.0.apk');
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
   };
@@ -53,13 +53,13 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="text-base font-bold text-white">Cinecut : Video editor</h3>
+                <h3 className="text-base font-bold text-white">Cincut Video Editor Pro</h3>
                 <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                  v2.4.0 Production
+                  v1.0.0 Production
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Official Native Android App (.apk) with Integrated Founder Admin Console
+                Official Native Android App (.apk) with Standalone Package ID &amp; Integrated Admin Station
               </p>
             </div>
           </div>
@@ -83,22 +83,22 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
                   Verified Android Package
                 </span>
                 <h4 className="text-lg font-bold text-white">
-                  Cinecut : Video editor + Integrated Admin
+                  Cincut Video Editor Pro v1.0.0
                 </h4>
                 <p className="text-xs text-slate-300 max-w-md">
-                  All-in-one APK containing the full mobile video editor and built-in Admin Command Station accessible via master credentials.
+                  Brand new standalone package ID (<code className="text-cyan-300 font-mono">com.cincut.editor.studio</code>). Installs cleanly without loading or conflicting with any older apps.
                 </p>
               </div>
 
               <div className="flex flex-col items-stretch gap-2 shrink-0">
                 <a
-                  href="/CineCut-Release-v2.4.0.apk"
-                  download="CineCut-Release-v2.4.0.apk"
+                  href="/CincutVideoEdittorPro-v1.0.0.apk"
+                  download="CincutVideoEdittorPro-v1.0.0.apk"
                   onClick={handleDownload}
                   className="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-stone-950 font-extrabold text-xs shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download CineCut APK</span>
+                  <span>Download Cincut APK v1.0.0</span>
                 </a>
 
                 <button
@@ -110,13 +110,13 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
                 </button>
 
                 <a
-                  href="https://github.com/robinisking3-byte/CineCut-Video-Editor/releases"
+                  href="https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases"
                   target="_blank"
                   rel="noreferrer"
                   className="px-3 py-1.5 rounded-lg bg-studio-850 hover:bg-studio-800 text-cyan-300 text-[11px] font-medium flex items-center justify-center gap-1.5 border border-cyan-500/30 transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  <span>GitHub Releases & Source</span>
+                  <span>GitHub Releases &amp; Source</span>
                 </a>
               </div>
             </div>
@@ -124,7 +124,7 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
             {downloadInitiated && (
               <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Download started! Check your browser downloads for <strong>CineCut-Release-v2.4.0.apk</strong>.</span>
+                <span>Download started! Check your browser downloads for <strong>CincutVideoEdittorPro-v1.0.0.apk</strong>.</span>
               </div>
             )}
           </div>
@@ -165,7 +165,7 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div className="p-3 rounded-xl bg-studio-850 border border-studio-800">
                 <span className="text-slate-400 block text-[10px] uppercase font-mono">App Label</span>
-                <span className="text-xs font-bold text-white truncate block">Cinecut : Video editor</span>
+                <span className="text-xs font-bold text-white truncate block">Cincut Video Editor Pro</span>
               </div>
               <div className="p-3 rounded-xl bg-studio-850 border border-studio-800">
                 <span className="text-slate-400 block text-[10px] uppercase font-mono">Target SDK</span>
@@ -173,11 +173,11 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
               </div>
               <div className="p-3 rounded-xl bg-studio-850 border border-studio-800">
                 <span className="text-slate-400 block text-[10px] uppercase font-mono">Package ID</span>
-                <span className="text-xs font-mono font-bold text-cyan-300">com.cutmedia.app</span>
+                <span className="text-xs font-mono font-bold text-cyan-300">com.cincut.editor.studio</span>
               </div>
               <div className="p-3 rounded-xl bg-studio-850 border border-studio-800">
-                <span className="text-slate-400 block text-[10px] uppercase font-mono">Signing</span>
-                <span className="text-xs font-mono font-bold text-emerald-400">Verified V1/V2</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-mono">Version</span>
+                <span className="text-xs font-mono font-bold text-emerald-400">1.0.0 (Code 1)</span>
               </div>
             </div>
           </div>
@@ -186,14 +186,13 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
           <div className="p-4 rounded-2xl bg-studio-850 border border-studio-750 space-y-2 text-xs">
             <span className="font-bold text-slate-200 flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-cyan-400" />
-              <span>How to Install on Android Without Invalid Package Errors:</span>
+              <span>Clean Installation (Standalone Package):</span>
             </span>
             <ol className="list-decimal pl-5 space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
-              <li>Tap <strong>Download CineCut APK</strong> above directly on your Android phone.</li>
-              <li>When your browser warns "File might be harmful", tap <strong>"Download anyway"</strong>.</li>
-              <li>If you have an older or modified version installed, <strong>uninstall the old version first</strong> to avoid package signature conflicts.</li>
-              <li>When opening the downloaded APK, tap <strong>Settings</strong> and enable <strong>"Allow from this source"</strong> (Install unknown apps).</li>
-              <li>Tap <strong>Install</strong> to complete installation.</li>
+              <li>Tap <strong>Download Cincut APK v1.0.0</strong> above directly on your Android phone.</li>
+              <li>This version uses a fresh package ID (<code>com.cincut.editor.studio</code>), so it will never conflict with or open your older app version.</li>
+              <li>When opening the downloaded APK, tap <strong>Settings</strong> and enable <strong>"Allow from this source"</strong> if prompted.</li>
+              <li>Tap <strong>Install</strong> to enjoy the clean v1.0.0 app.</li>
             </ol>
           </div>
 
@@ -202,7 +201,7 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
         {/* Footer */}
         <div className="px-6 py-4 bg-studio-850/90 border-t border-studio-750 flex items-center justify-between sticky bottom-0 z-10 backdrop-blur-md">
           <span className="text-[11px] text-slate-400 font-mono">
-            Direct Path: /CineCut-Release-v2.4.0.apk
+            Direct Path: /CincutVideoEdittorPro-v1.0.0.apk
           </span>
           <button
             onClick={onClose}

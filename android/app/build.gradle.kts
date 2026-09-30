@@ -10,7 +10,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.cincut.videoeditor.pro"
+        applicationId = "com.cincut.editor.studio"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

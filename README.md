@@ -12,14 +12,14 @@
 
 | Package | Version | Application ID | Direct Releases |
 | :--- | :--- | :--- | :--- |
-| **Cincut Video Editor Pro** | v1.0.0 Production | `com.cincut.videoeditor.pro` | [🚀 GitHub Releases & Direct APK](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases) |
+| **Cincut Video Editor Pro** | v1.0.0 Production | `com.cincut.editor.studio` | [🚀 GitHub Releases & Direct APK](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases) |
 
 ---
 
 ## ⚡ Architecture & Subsystems
 
 ### 1. Independent Application Separation
-- **Cincut Video Editor Pro** (`com.cincut.videoeditor.pro`): Standalone, clean installation for creators and filmmakers. Never conflicts with or loads old package installations.
+- **Cincut Video Editor Pro** (`com.cincut.editor.studio`): Standalone, clean installation for creators and filmmakers. Never conflicts with or loads old package installations.
 - Both applications can be installed simultaneously on the same Android device without conflict.
 
 ### 2. Video Editor Subsystem

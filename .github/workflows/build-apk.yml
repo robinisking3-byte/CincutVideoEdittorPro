@@ -83,12 +83,12 @@ jobs:
           body: |
             ### 🎬 Cincut Video Editor Pro v1.0.0 Production Release
 
-            Brand new standalone package ID (`com.cincut.videoeditor.pro`) with isolated storage — installs cleanly without conflict with any older apps.
+            Brand new standalone package ID (`com.cincut.editor.studio`) with isolated storage — installs cleanly without conflict with any older apps.
 
             - 📱 **Direct Download APK**: [**CincutVideoEdittorPro-v1.0.0.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.0.0-${{ github.run_number }}/CincutVideoEdittorPro-v1.0.0.apk)
 
             #### What's in v1.0.0:
-            - **New Package ID**: `com.cincut.videoeditor.pro` (Version Code 1, Version Name 1.0.0)
+            - **New Package ID**: `com.cincut.editor.studio` (Version Code 1, Version Name 1.0.0)
             - **Standalone Installation**: Installs cleanly on Android 8.0 - 15+ without loading or conflicting with older app versions
             - **CapCut Multi-Track Timeline**: Bézier speed curves (0.1x to 10.0x), split/trim/duplicate, and live real-time export progress
             - **ZapUPI Payment Gateway Integrated**: Native UPI payment modal, merchant verification, and subscription unlocking

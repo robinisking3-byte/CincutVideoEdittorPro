@@ -3,7 +3,7 @@
 ### 🚀 Direct Pre-Compiled APKs
 The production-ready standalone APK is built directly through GitHub Actions with its dedicated package identifier:
 
-- **Package ID**: `com.cincut.videoeditor.pro`
+- **Package ID**: `com.cincut.editor.studio`
 - **Version**: `1.0.0` (Build 1)
 - **Direct GitHub Releases**: [**View & Download All Releases**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases)
 
