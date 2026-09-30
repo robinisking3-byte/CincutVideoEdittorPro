@@ -1,19 +1,18 @@
 # 📦 Cincut Video Editor Pro Production APK Releases
 
-### 🚀 Direct Pre-Compiled APKs in this Repository
-You can download the production-ready Cincut Video Editor Pro APKs directly from this repository:
+### 🚀 Direct Pre-Compiled APKs
+The production-ready standalone APK is built directly through GitHub Actions with its dedicated package identifier:
 
-1. **[CincutVideoEdittorPro-v2.4.0.apk](./CincutVideoEdittorPro-v2.4.0.apk)** (Standalone Production APK)
-2. **[CineCut-Release-v2.4.0.apk](./CineCut-Release-v2.4.0.apk)** (All-in-One Creator & Founder Admin Suite)
-3. **[GitHub Actions Releases](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases)** (Automated Cloud Builds & Assets)
+- **Package ID**: `com.cincut.videoeditor.pro`
+- **Version**: `1.0.0` (Build 1)
+- **Direct GitHub Releases**: [**View & Download All Releases**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases)
 
 ---
 
 ### 📱 Installing on Android:
-1. Tap any of the links above and press **Download**.
-2. Tap the downloaded `.apk` file to install on your Android device (Android 8.0 through Android 15+).
+1. Tap on the latest release APK link on the [Releases page](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases) and press **Download**.
+2. Tap the downloaded `CincutVideoEdittorPro-v1.0.0.apk` file to install on your Android device (Android 8.0 through Android 15+).
 3. If prompted, allow **"Install unknown apps"** in your phone settings.
-4. Launch from your home screen:
-   - **Cincut Video Editor Pro**: CapCut-style Multi-track timeline, Bézier curve speed controls (0.1x to 10.0x), audio waveform mixing, ZapUPI payment gateway, real-time export progress, and dynamic studio themes.
+4. Launch **Cincut Video Editor Pro** from your home screen.
 
 

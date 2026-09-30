@@ -44,21 +44,23 @@ jobs:
       - name: Organize & Package Release Artifacts
         run: |
           mkdir -p build-output
-          # Locate built APK
-          APP_APK=$(find android/ -name "*.apk" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
+          # Locate newly built release APK
+          APP_APK=$(find android/app/build/outputs/apk/ -name "*.apk" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
           
+          if [ -z "$APP_APK" ] || [ ! -f "$APP_APK" ]; then
+            APP_APK=$(find android/ -name "*.apk" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
+          fi
+
           if [ -z "$APP_APK" ] || [ ! -f "$APP_APK" ]; then
             APP_APK=$(find . -name "*.apk" ! -path "./build-output/*" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
           fi
 
           if [ -n "$APP_APK" ] && [ -f "$APP_APK" ]; then
-            echo "Found APK at: $APP_APK"
-            cp "$APP_APK" build-output/CincutVideoEdittorPro-v2.4.0.apk
-            cp "$APP_APK" build-output/CineCut-Release-v2.4.0.apk
-          elif [ -f "public/CineCut-Release-v2.4.0.apk" ]; then
-            echo "Using packaged APK from public directory"
-            cp "public/CineCut-Release-v2.4.0.apk" build-output/CincutVideoEdittorPro-v2.4.0.apk
-            cp "public/CineCut-Release-v2.4.0.apk" build-output/CineCut-Release-v2.4.0.apk
+            echo "Successfully found newly built APK at: $APP_APK"
+            cp "$APP_APK" build-output/CincutVideoEdittorPro-v1.0.0.apk
+          else
+            echo "ERROR: No APK found after build step!"
+            exit 1
           fi
 
           echo "Generated APK artifacts in build-output:"
@@ -67,7 +69,7 @@ jobs:
       - name: Upload APKs as GitHub Artifacts (Instant Download)
         uses: actions/upload-artifact@v4
         with:
-          name: CincutVideoEdittorPro-APKs
+          name: CincutVideoEdittorPro-v1.0.0
           path: build-output/*.apk
           retention-days: 60
 
@@ -76,22 +78,21 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: v2.4.0-${{ github.run_number }}
-          name: "Cincut Video Editor Pro Release v2.4.0 (Build #${{ github.run_number }})"
+          tag_name: v1.0.0-${{ github.run_number }}
+          name: "Cincut Video Editor Pro Release v1.0.0 (Build #${{ github.run_number }})"
           body: |
-            ### 🎬 Cincut Video Editor Pro v2.4.0 Direct Downloads
+            ### 🎬 Cincut Video Editor Pro v1.0.0 Production Release
 
-            Direct downloadable production APK ready to install on any Android phone (Android 8.0 - 15+):
+            Brand new standalone package ID (`com.cincut.videoeditor.pro`) with isolated storage — installs cleanly without conflict with any older apps.
 
-            - 📱 **[CincutVideoEdittorPro-v2.4.0.apk](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v2.4.0-${{ github.run_number }}/CincutVideoEdittorPro-v2.4.0.apk)**
-            - ⚡ **[CineCut-Release-v2.4.0.apk](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v2.4.0-${{ github.run_number }}/CineCut-Release-v2.4.0.apk)**
+            - 📱 **Direct Download APK**: [**CincutVideoEdittorPro-v1.0.0.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.0.0-${{ github.run_number }}/CincutVideoEdittorPro-v1.0.0.apk)
 
-            #### Key Features Included:
-            - **Professional CapCut Multi-Track Timeline**: Multi-layer video, audio waveform, animated subtitles & effects, Bézier speed curves (0.1x to 10.0x), split/duplicate/delete, keyframing, and 4K/8K 60fps export.
-            - **ZapUPI Payment Gateway Integrated**: Instant UPI payment settlement with merchant key `zapfe5c7f3c3967c502e85648e908153d54`, QR code, intent launch, and instant verification for buying subscriptions.
-            - **Subscriptions & Revenue Console**: Financial KPIs (MRR in ₹ and $), active subscriber management, custom plan builder, and real-time transaction logging.
-            - **Production-Ready User Directory**: Search, role assignment (VIP/Founder/Creator), bulk operations, device management, and audit logging.
-            - **Social & AI Studio**: Friend network direct messaging, real-time collaboration, auto-captions, and beat-syncing.
+            #### What's in v1.0.0:
+            - **New Package ID**: `com.cincut.videoeditor.pro` (Version Code 1, Version Name 1.0.0)
+            - **Standalone Installation**: Installs cleanly on Android 8.0 - 15+ without loading or conflicting with older app versions
+            - **CapCut Multi-Track Timeline**: Bézier speed curves (0.1x to 10.0x), split/trim/duplicate, and live real-time export progress
+            - **ZapUPI Payment Gateway Integrated**: Native UPI payment modal, merchant verification, and subscription unlocking
+            - **Social & AI Studio**: Real-time Firebase Firestore collaboration, friend directory, and auto-captioning
           files: build-output/*.apk
           draft: false
           prerelease: false

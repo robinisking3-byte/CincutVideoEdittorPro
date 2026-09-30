@@ -1,6 +1,6 @@
 {
-  "name": "Cinecut : Video editor",
-  "description": "Cinecut : Video editor — Professional Video Trimmer, AI Pipeline, and Founder Admin Console",
+  "name": "Cincut Video Editor Pro",
+  "description": "Cincut Video Editor Pro — Professional Mobile Video Editor, Multi-Track Timeline, and Admin Station v1.0.0",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

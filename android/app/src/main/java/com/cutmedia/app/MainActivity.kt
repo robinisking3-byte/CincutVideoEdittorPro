@@ -135,7 +135,7 @@ fun CutMediaApp(
                         // Branding
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "CineCut",
+                                text = "Cincut Pro",
                                 fontWeight = FontWeight.Black,
                                 fontSize = 18.sp,
                                 color = MaterialTheme.colorScheme.onBackground
@@ -146,7 +146,7 @@ fun CutMediaApp(
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(
-                                    text = "VIDEO EDITOR",
+                                    text = "v1.0.0 PRO",
                                     fontSize = 8.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,

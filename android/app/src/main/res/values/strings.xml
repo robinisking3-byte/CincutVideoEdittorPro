@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Cinecut : Video editor</string>
-    <string name="app_name_user">Cinecut : Video editor</string>
-    <string name="app_name_admin">Cinecut Admin Console</string>
+    <string name="app_name">Cincut Video Editor Pro</string>
+    <string name="app_name_user">Cincut Video Editor Pro</string>
+    <string name="app_name_admin">Cincut Admin Console</string>
 </resources>

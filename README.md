@@ -8,21 +8,18 @@
 
 ---
 
-## 📦 Direct Pre-Built Production APKs
+## 📦 Production Releases & Direct APK Download
 
-| Package | Version | Direct Download |
-| :--- | :--- | :--- |
-| **Cincut Video Editor Pro** | v2.4.0 Production | [📥 CincutVideoEdittorPro-v2.4.0.apk](./releases/CincutVideoEdittorPro-v2.4.0.apk) |
-| **CineCut All-In-One Suite** | v2.4.0 Suite | [📥 CineCut-Release-v2.4.0.apk](./releases/CineCut-Release-v2.4.0.apk) |
-| **GitHub Releases** | Cloud Automated Builds | [🚀 View GitHub Releases](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases) |
+| Package | Version | Application ID | Direct Releases |
+| :--- | :--- | :--- | :--- |
+| **Cincut Video Editor Pro** | v1.0.0 Production | `com.cincut.videoeditor.pro` | [🚀 GitHub Releases & Direct APK](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases) |
 
 ---
 
 ## ⚡ Architecture & Subsystems
 
 ### 1. Independent Application Separation
-- **CutMedia Client** (`com.cutmedia.app`): For filmmakers, creators, and editors.
-- **CutMedia Admin** (`com.cutmedia.admin`): Dedicated administrative command app with independent application ID and lifecycle.
+- **Cincut Video Editor Pro** (`com.cincut.videoeditor.pro`): Standalone, clean installation for creators and filmmakers. Never conflicts with or loads old package installations.
 - Both applications can be installed simultaneously on the same Android device without conflict.
 
 ### 2. Video Editor Subsystem
