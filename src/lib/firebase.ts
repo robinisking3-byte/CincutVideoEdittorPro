@@ -720,6 +720,25 @@ export async function syncTemplateToFirestore(tpl: VideoTemplate): Promise<void>
   }
 }
 
+export function subscribeToTemplates(onData: (templates: VideoTemplate[]) => void): Unsubscribe | null {
+  if (!db) return null;
+  try {
+    const q = query(collection(db, COLLECTIONS.TEMPLATES), limit(50));
+    return onSnapshot(q, (snapshot) => {
+      const items: VideoTemplate[] = [];
+      snapshot.forEach(docSnap => {
+        items.push({ id: docSnap.id, ...(docSnap.data() as Omit<VideoTemplate, 'id'>) });
+      });
+      onData(items);
+    }, (error) => {
+      console.warn('Templates subscription notice:', error.message);
+    });
+  } catch (err) {
+    console.warn('Failed to subscribe to templates:', err);
+    return null;
+  }
+}
+
 export async function syncPromotedFeatureToFirestore(promo: {
   id: string;
   title: string;

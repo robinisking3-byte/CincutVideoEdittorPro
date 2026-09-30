@@ -25,6 +25,7 @@ export interface ExportProgressViewProps {
   fps: number;
   aspectRatio?: string;
   totalDurationSeconds?: number;
+  videoBlobUrl?: string | null;
   onCancel?: () => void;
   onPauseToggle?: (isPaused: boolean) => void;
   onDone?: () => void;
@@ -41,6 +42,7 @@ export const ExportProgressView: React.FC<ExportProgressViewProps> = ({
   fps,
   aspectRatio = '9:16',
   totalDurationSeconds = 15.0,
+  videoBlobUrl,
   onCancel,
   onPauseToggle,
   onDone,
@@ -411,18 +413,32 @@ export const ExportProgressView: React.FC<ExportProgressViewProps> = ({
             </div>
           </div>
 
+          {videoBlobUrl && (
+            <div className="rounded-xl overflow-hidden bg-black border border-stone-800 p-1 flex justify-center">
+              <video 
+                src={videoBlobUrl} 
+                controls 
+                className="max-h-48 rounded-lg" 
+              />
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-2">
             <button
-              onClick={onDownload || (() => {
-                const a = document.createElement('a');
-                a.href = '/CineCut-Release-v2.4.0.apk';
-                a.download = `${projectTitle}_${resolution}.mp4`;
-                a.click();
-              })}
+              onClick={() => {
+                if (onDownload) {
+                  onDownload();
+                } else if (videoBlobUrl) {
+                  const a = document.createElement('a');
+                  a.href = videoBlobUrl;
+                  a.download = `${projectTitle.replace(/\s+/g, '_')}_${resolution}.mp4`;
+                  a.click();
+                }
+              }}
               className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-stone-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all"
             >
               <Download className="w-4 h-4" />
-              <span>Download Rendered Video ({getEstimatedFileSize()} MB)</span>
+              <span>Save Video to Gallery &amp; Device</span>
             </button>
 
             {onDone && (

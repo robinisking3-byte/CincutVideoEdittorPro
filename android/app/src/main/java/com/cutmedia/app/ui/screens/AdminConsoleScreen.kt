@@ -35,12 +35,105 @@ import java.util.Locale
 @Composable
 fun AdminConsoleScreen(
     repository: CutMediaRepository,
-    hasAdminAccess: Boolean = true,
+    hasAdminAccess: Boolean = false,
     onUnlockAdmin: (String, String) -> Boolean = { _, _ -> true },
     onClose: () -> Unit
 ) {
-    // Unrestricted Master Admin Station — Removed "Secured Admin Access" blocking gate for instant access!
-    AdminStationView(repository = repository, onClose = onClose)
+    var isUnlocked by remember { mutableStateOf(hasAdminAccess) }
+    var enteredKey by remember { mutableStateOf("") }
+    var keyError by remember { mutableStateOf(false) }
+
+    if (!isUnlocked) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = CircleShape,
+                modifier = Modifier.size(64.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = "Admin Gate",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Administrator Verification",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Text(
+                text = "Enter secure administrator passkey to access command center",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+            )
+
+            OutlinedTextField(
+                value = enteredKey,
+                onValueChange = {
+                    enteredKey = it
+                    keyError = false
+                },
+                label = { Text("Admin Passkey") },
+                singleLine = true,
+                isError = keyError,
+                modifier = Modifier.fillMaxWidth().testTag("admin_passkey_input")
+            )
+
+            if (keyError) {
+                Text(
+                    text = "Invalid passkey. Access denied.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onClose,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Cancel")
+                }
+
+                Button(
+                    onClick = {
+                        if (enteredKey.trim() == "CincutAdmin@2025#" || enteredKey.trim() == "Robintyagi@83073##") {
+                            isUnlocked = true
+                        } else {
+                            keyError = true
+                        }
+                    },
+                    modifier = Modifier.weight(1f).testTag("admin_unlock_button")
+                ) {
+                    Text("Unlock")
+                }
+            }
+        }
+    } else {
+        AdminStationView(repository = repository, onClose = onClose)
+    }
 }
 
 @Composable
@@ -97,7 +190,7 @@ fun AdminStationView(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF22C55E)))
                             Text(
-                                text = "SYSTEM ONLINE • UNRESTRICTED ACCESS",
+                                text = "SYSTEM ONLINE • AUTHORIZED OPERATOR",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF22C55E)

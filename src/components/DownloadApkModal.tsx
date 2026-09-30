@@ -121,40 +121,12 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
               </div>
             </div>
 
-            {downloadInitiated && (
+              {downloadInitiated && (
               <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>Download started! Check your browser downloads for <strong>CincutVideoEdittorPro-v1.0.0.apk</strong>.</span>
               </div>
             )}
-          </div>
-
-          {/* Master Admin Credentials Card */}
-          <div className="p-4 rounded-2xl bg-studio-850 border border-amber-500/30 space-y-2.5 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-amber-300 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-amber-400" />
-                <span>Admin Panel Access in Main App:</span>
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-semibold">
-                True / False Gated Station
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-300">
-              The Admin console is built right into the CineCut app. Tap the <strong>Shield icon</strong> in the top header or in Profile settings to unlock with your master credentials:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
-              <div className="p-2.5 rounded-xl bg-studio-900 border border-studio-750 space-y-1">
-                <span className="text-amber-400 font-bold block">Master Admin 1</span>
-                <div>Email: <code className="text-cyan-300 font-mono">robinisking3@gmail.com</code></div>
-                <div>Key: <code className="text-slate-200 font-mono">Robintyagi@83073##</code></div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-studio-900 border border-studio-750 space-y-1">
-                <span className="text-purple-400 font-bold block">Master Admin 2</span>
-                <div>Email: <code className="text-cyan-300 font-mono">robintyagi861az@gmail.com</code></div>
-                <div>Key: <code className="text-slate-200 font-mono">Robintyagi@MasterAdmin@83073##</code></div>
-              </div>
-            </div>
           </div>
 
           {/* Android App Specifications */}

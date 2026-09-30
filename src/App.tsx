@@ -97,10 +97,14 @@ export function App() {
             <img 
               src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} 
               alt={currentUser.username} 
-              className="w-5 h-5 rounded-full object-cover border border-amber-400/50" 
+              className="w-5 h-5 rounded-full object-cover border border-cyan-400/50" 
             />
             <span className="font-bold text-white text-xs max-w-[100px] truncate">{currentUser.username}</span>
-            <span className="text-[10px] text-amber-400 font-mono">👑</span>
+            {currentUser.role === 'admin' ? (
+              <span className="text-[10px] text-amber-400 font-mono" title="Administrator">👑</span>
+            ) : (
+              <span className="text-[10px] text-cyan-400 font-mono" title="Creator">✨</span>
+            )}
           </button>
 
           {/* Download Real APK Button */}
@@ -121,6 +125,7 @@ export function App() {
           onOpenDownloadApkModal={() => setIsDownloadApkModalOpen(true)}
           onOpenFirebaseModal={() => setIsFirebaseModalOpen(true)}
           onSubscribeSuccess={handleSubscribeSuccess}
+          onUpdateCurrentUser={(u) => setCurrentUser(u)}
         />
       </main>
 
@@ -130,8 +135,6 @@ export function App() {
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
         onUserAuthenticated={(u) => setCurrentUser(u)}
-        availableDemoUsers={[currentUser]}
-        onSwitchUser={(u) => setCurrentUser(u)}
       />
 
       {/* Download Android APK Modal */}

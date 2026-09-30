@@ -41,16 +41,16 @@ export const INITIAL_SUBSCRIPTION_PLANS: SubscriptionPlanConfig[] = [
 ];
 
 export const INITIAL_DEMO_USER: User = {
-  id: 'usr-robin-master',
-  userIdTag: 'VID-10001',
-  username: 'Robin_CineCut',
-  email: 'robinisking3@gmail.com',
-  role: 'admin',
-  premiumRole: 'FOUNDER_ADMIN',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-  yellowCoins: 250,
-  blueCoins: 45,
-  streakDays: 7,
+  id: 'usr-guest-creator',
+  userIdTag: 'VID-71829',
+  username: 'CreatorStudio',
+  email: 'creator@cincut.studio',
+  role: 'creator',
+  premiumRole: 'FREE',
+  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+  yellowCoins: 50,
+  blueCoins: 10,
+  streakDays: 1,
   isBanned: false,
-  deviceModel: 'Pixel 9 Pro XL'
+  deviceModel: 'Web & Android Studio'
 };

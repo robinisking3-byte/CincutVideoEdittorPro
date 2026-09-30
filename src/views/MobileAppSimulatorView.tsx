@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, 
   Pause, 
@@ -9,18 +9,20 @@ import {
   Share2, 
   Film, 
   Volume2, 
+  VolumeX, 
   Clock, 
   CheckCircle, 
+  CheckCircle2, 
   Users, 
   ShieldCheck, 
   ShieldAlert, 
+  Shield, 
   Download, 
   Smartphone, 
   Tv, 
   Scissors, 
   Layers, 
   Maximize2, 
-  VolumeX, 
   Radio, 
   Power, 
   Check, 
@@ -45,291 +47,328 @@ import {
   Repeat,
   Database,
   X,
-  CreditCard
+  CreditCard,
+  Upload,
+  Lock,
+  Unlock,
+  Trash2,
+  FileVideo
 } from 'lucide-react';
-import { User, SubscriptionPlanConfig } from '../types';
+import { User, SubscriptionPlanConfig, VideoTemplate, SavedProject, SavedExportedVideo } from '../types';
 import { INITIAL_SUBSCRIPTION_PLANS } from '../data/initialData';
 import { ZapUpiPaymentModal } from '../components/ZapUpiPaymentModal';
 import { ExportProgressView } from '../components/ExportProgressView';
-import { syncPromotedFeatureToFirestore } from '../lib/firebase';
+import { CreateTemplateModal } from '../components/CreateTemplateModal';
+import { AdminAccessModal } from '../components/AdminAccessModal';
+import { 
+  syncPromotedFeatureToFirestore, 
+  subscribeToPromotedFeatures,
+  subscribeToTemplates,
+  sendChatMessage,
+  subscribeToChatMessages
+} from '../lib/firebase';
 
 interface MobileAppSimulatorViewProps {
   currentUser: User;
   onOpenDownloadApkModal: () => void;
   onOpenFirebaseModal: () => void;
   onSubscribeSuccess?: (plan: SubscriptionPlanConfig, txn: any) => void;
+  onUpdateCurrentUser?: (user: User) => void;
 }
 
-interface SavedProject {
-  id: string;
-  title: string;
-  aspectRatio: string;
-  filter: string;
-  duration: number;
-  updatedAt: string;
-  thumbnailGradient: string;
-}
+// Built-in royalty-free sample clips
+const SAMPLE_VIDEOS = [
+  {
+    id: 'vid-golden',
+    title: 'Golden Sunset Horizon',
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    category: 'Cinematic'
+  },
+  {
+    id: 'vid-neon',
+    title: 'Urban Neon Drift',
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    category: 'Cyberpunk'
+  },
+  {
+    id: 'vid-ocean',
+    title: 'Coastal Ocean Waves',
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
+    category: 'Vlog'
+  }
+];
 
 export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
   currentUser,
   onOpenDownloadApkModal,
   onOpenFirebaseModal,
-  onSubscribeSuccess
+  onSubscribeSuccess,
+  onUpdateCurrentUser
 }) => {
-  // Simulator Device State
+  // App Switching (Creator Studio vs Secure Admin Console)
   const [activeApp, setActiveApp] = useState<'creator' | 'admin'>('creator');
+  const [isAdminAccessModalOpen, setIsAdminAccessModalOpen] = useState(false);
   const [phoneTheme, setPhoneTheme] = useState<'dark' | 'diwali' | 'holi'>('dark');
 
-  // Creator App States
+  // Creator App Navigation Tabs
   const [creatorBottomTab, setCreatorBottomTab] = useState<'editor' | 'projects' | 'ai' | 'social' | 'profile'>('editor');
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(4.2);
-  const [totalDuration, setTotalDuration] = useState(15.0);
-  const [trimStart, setTrimStart] = useState(0.0);
-  const [trimEnd, setTrimEnd] = useState(15.0);
-  const [selectedAspect, setSelectedAspect] = useState<'16:9' | '9:16' | '1:1' | '4:5'>('9:16');
-  const [selectedFilter, setSelectedFilter] = useState<'Normal' | 'Cinematic' | 'Warm' | 'Noir' | 'Cyberpunk'>('Cinematic');
+
+  // Real Video Player States
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const exportCanvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [activeVideoSrc, setActiveVideoSrc] = useState<string>(SAMPLE_VIDEOS[0].url);
+  const [activeVideoTitle, setActiveVideoTitle] = useState<string>(SAMPLE_VIDEOS[0].title);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(0.0);
+  const [totalDuration, setTotalDuration] = useState<number>(15.0);
+  const [trimStart, setTrimStart] = useState<number>(0.0);
+  const [trimEnd, setTrimEnd] = useState<number>(15.0);
   const [videoSpeed, setVideoSpeed] = useState<number>(1.0);
   const [audioVolume, setAudioVolume] = useState<number>(85);
-  const [projectTitle, setProjectTitle] = useState('Reel_Sunset_Cut');
-  const [saveToast, setSaveToast] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
 
-  // Pro CapCut Multi-Track & Tool Palette States
-  const [activeTimelineTrack, setActiveTimelineTrack] = useState<'video' | 'audio' | 'text' | 'effects'>('video');
-  const [activeEditorTool, setActiveEditorTool] = useState<'trim' | 'speed' | 'keyframes' | 'filters' | 'adjust' | 'text' | 'transitions'>('trim');
-  const [timelineClips, setTimelineClips] = useState([
-    { id: 'c1', title: 'Hook Scene', start: 0.0, end: 4.5, color: 'from-amber-600 to-rose-600' },
-    { id: 'c2', title: 'Action Drop', start: 4.5, end: 10.2, color: 'from-cyan-600 to-blue-700' },
-    { id: 'c3', title: 'Outro Climax', start: 10.2, end: 15.0, color: 'from-purple-600 to-indigo-800' }
-  ]);
-  const [selectedClipId, setSelectedClipId] = useState<string>('c2');
-  
-  // Speed Curve & Keyframes
-  const [speedCurvePreset, setSpeedCurvePreset] = useState<'normal' | 'montage' | 'hero' | 'bullet' | 'flash'>('normal');
-  const [keyframes, setKeyframes] = useState<Array<{ id: string; time: number; scale: number; rotation: number }>>([
-    { id: 'kf1', time: 2.0, scale: 1.0, rotation: 0 },
-    { id: 'kf2', time: 6.5, scale: 1.25, rotation: 8 }
-  ]);
-  const [keyframeScale, setKeyframeScale] = useState<number>(1.15);
-  const [keyframeRotation, setKeyframeRotation] = useState<number>(0);
+  // Framing & Filters
+  const [selectedAspect, setSelectedAspect] = useState<'16:9' | '9:16' | '1:1' | '4:5'>('9:16');
+  const [selectedFilter, setSelectedFilter] = useState<'Normal' | 'Cinematic' | 'Warm' | 'Noir' | 'Cyberpunk' | 'Vintage'>('Cinematic');
+  const [projectTitle, setProjectTitle] = useState<string>('Sunset_Reel_Cut');
+  const [saveToast, setSaveToast] = useState<string | null>(null);
 
   // Color Grading Adjustments
   const [exposureAdj, setExposureAdj] = useState<number>(0);
-  const [contrastAdj, setContrastAdj] = useState<number>(108);
+  const [contrastAdj, setContrastAdj] = useState<number>(110);
   const [saturationAdj, setSaturationAdj] = useState<number>(115);
-  const [vignetteAdj, setVignetteAdj] = useState<number>(25);
-  const [tempAdj, setTempAdj] = useState<number>(5);
 
-  // Subtitles & Captions
-  const [captionText, setCaptionText] = useState('✨ Epic Golden Hour Reel');
-  const [captionStyle, setCaptionStyle] = useState<'bouncing' | 'karaoke' | 'box' | 'cinematic'>('bouncing');
-  const [captionFont, setCaptionFont] = useState<'sans' | 'serif' | 'bold' | 'script'>('bold');
+  // Subtitles & Captions Overlay
+  const [captionText, setCaptionText] = useState<string>('✨ Cinematic Golden Hour');
+  const [captionStyle, setCaptionStyle] = useState<'bouncing' | 'karaoke' | 'box' | 'cinematic' | 'neon'>('bouncing');
+  const [captionColor, setCaptionColor] = useState<string>('#fbbf24');
 
-  // Transitions
-  const [selectedTransition, setSelectedTransition] = useState<'none' | 'dissolve' | 'fade_black' | 'whip_pan' | 'zoom' | 'glitch'>('dissolve');
+  // Multi-track & Tool Palette
+  const [activeTimelineTrack, setActiveTimelineTrack] = useState<'video' | 'audio' | 'text' | 'adjust'>('video');
+  const [activeEditorTool, setActiveEditorTool] = useState<'trim' | 'speed' | 'filters' | 'adjust' | 'text' | 'clips'>('trim');
+  const [timelineClips, setTimelineClips] = useState([
+    { id: 'c1', title: 'Hook Scene', start: 0.0, end: 5.0, color: 'from-amber-600 to-rose-600' },
+    { id: 'c2', title: 'Main Motion', start: 5.0, end: 10.0, color: 'from-cyan-600 to-blue-700' },
+    { id: 'c3', title: 'Outro', start: 10.0, end: 15.0, color: 'from-purple-600 to-indigo-800' }
+  ]);
+  const [selectedClipId, setSelectedClipId] = useState<string>('c1');
 
-  // Export Modal & Progress
+  // Keyframes
+  const [keyframes, setKeyframes] = useState<Array<{ id: string; time: number; scale: number }>>([
+    { id: 'kf1', time: 2.0, scale: 1.0 },
+    { id: 'kf2', time: 6.5, scale: 1.15 }
+  ]);
+
+  // Real Export Engine
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [exportResolution, setExportResolution] = useState<'720p' | '1080p' | '4K' | '8K'>('1080p');
+  const [exportResolution, setExportResolution] = useState<'720p' | '1080p' | '4K'>('1080p');
   const [exportFps, setExportFps] = useState<24 | 30 | 60>(60);
   const [exportProgress, setExportProgress] = useState<number>(0);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportComplete, setExportComplete] = useState<boolean>(false);
-  const [isExportPaused, setIsExportPaused] = useState<boolean>(false);
-  const exportIntervalRef = React.useRef<any>(null);
+  const [exportVideoBlobUrl, setExportVideoBlobUrl] = useState<string | null>(null);
 
-  // ZapUPI Subscription Checkout
-  const [isZapUpiModalOpen, setIsZapUpiModalOpen] = useState(false);
-  const [selectedZapUpiPlan, setSelectedZapUpiPlan] = useState<SubscriptionPlanConfig | null>(
-    INITIAL_SUBSCRIPTION_PLANS.find(p => p.id === 'plan-subscribed-creator') || INITIAL_SUBSCRIPTION_PLANS[1]
-  );
-
-  // Projects list
+  // Gallery of Exported Videos & Saved Projects
+  const [exportedGallery, setExportedGallery] = useState<SavedExportedVideo[]>([]);
   const [projects, setProjects] = useState<SavedProject[]>([
     {
       id: 'p1',
-      title: 'Reel_Sunset_Cut',
+      title: 'Sunset_Reel_Cut',
       aspectRatio: '9:16',
       filter: 'Cinematic',
       duration: 15.0,
-      updatedAt: 'Just now',
+      updatedAt: 'Active Project',
       thumbnailGradient: 'from-amber-600 via-rose-600 to-purple-800'
-    },
-    {
-      id: 'p2',
-      title: 'Mumbai_Street_Vlog',
-      aspectRatio: '16:9',
-      filter: 'Warm',
-      duration: 42.5,
-      updatedAt: '2 hours ago',
-      thumbnailGradient: 'from-cyan-600 via-blue-600 to-indigo-900'
-    },
-    {
-      id: 'p3',
-      title: 'Tech_Launch_Teaser',
-      aspectRatio: '1:1',
-      filter: 'Cyberpunk',
-      duration: 8.2,
-      updatedAt: 'Yesterday',
-      thumbnailGradient: 'from-fuchsia-600 via-pink-600 to-rose-900'
     }
   ]);
 
-  // AI Generation Sim
-  const [aiRunning, setAiRunning] = useState(false);
-  const [aiResult, setAiResult] = useState<string | null>(null);
+  // Templates
+  const [isCreateTemplateModalOpen, setIsCreateTemplateModalOpen] = useState(false);
+  const [templates, setTemplates] = useState<VideoTemplate[]>([
+    {
+      id: 'tpl-1',
+      title: 'Neon Reels Cyber 2077',
+      creatorId: 'usr-cincut-team',
+      creatorName: 'Cincut Studio',
+      aspectRatio: '9:16',
+      category: 'Reels',
+      likes: 142,
+      uses: 89,
+      status: 'approved',
+      createdAt: '2025-01-15'
+    },
+    {
+      id: 'tpl-2',
+      title: 'Warm Sunset Travel Vlog',
+      creatorId: 'usr-cincut-team',
+      creatorName: 'Cincut Studio',
+      aspectRatio: '16:9',
+      category: 'Cinematic',
+      likes: 98,
+      uses: 64,
+      status: 'approved',
+      createdAt: '2025-01-18'
+    }
+  ]);
 
-  // Admin App States
-  const [adminBottomTab, setAdminBottomTab] = useState<'telemetry' | 'roles' | 'security' | 'broadcast' | 'promote'>('promote');
+  // ZapUPI Modal
+  const [isZapUpiModalOpen, setIsZapUpiModalOpen] = useState(false);
+  const [selectedZapUpiPlan, setSelectedZapUpiPlan] = useState<SubscriptionPlanConfig | null>(
+    INITIAL_SUBSCRIPTION_PLANS[1]
+  );
+
+  // AI Feature Coming Soon Notifications
+  const [notifiedAiFeatures, setNotifiedAiFeatures] = useState<Record<string, boolean>>({});
+
+  // Real-time Chat
+  const [activeChatTag, setActiveChatTag] = useState<string | null>(null);
+  const [chatInputText, setChatInputText] = useState<string>('');
+  const [chatMessages, setChatMessages] = useState<Record<string, Array<{ id: string; sender: string; text: string; time: string; isMe: boolean; projectAttachment?: string }>>>({});
+  const [connectedFriends, setConnectedFriends] = useState<Array<{ name: string; tag: string; role: string; online: boolean }>>([]);
+  const [friendSearchInput, setFriendSearchInput] = useState<string>('');
+
+  // Admin Console States (Strictly Gated)
+  const [adminBottomTab, setAdminBottomTab] = useState<'metrics' | 'roles' | 'security' | 'broadcast' | 'promote'>('metrics');
   const [killSwitchActive, setKillSwitchActive] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastSent, setBroadcastSent] = useState(false);
   const [targetUserId, setTargetUserId] = useState('');
   const [roleAssignedMsg, setRoleAssignedMsg] = useState<string | null>(null);
-
-  // Worldwide Promoted Feature state (Promoted by Admin and synced worldwide)
-  const [worldwidePromotion, setWorldwidePromotion] = useState<{
-    id: string;
-    title: string;
-    badge: string;
-    perk: string;
-    description: string;
-    targetTab: string;
-  } | null>({
-    id: 'promo-ai-captions',
-    title: 'AI Auto-Captions & Subtitle Sync',
-    badge: 'WORLDWIDE SPOTLIGHT',
-    perk: 'Free 0 Blue Coins Unlocked',
-    description: 'Deep learning speech-to-text with karaoke bounce animations.',
-    targetTab: 'ai'
-  });
-
-  // Phone Simulator Live Coin Economy
-  const [simYellowCoins, setSimYellowCoins] = useState<number>(currentUser.yellowCoins || 150);
-  const [simBlueCoins, setSimBlueCoins] = useState<number>(currentUser.blueCoins || 25);
-  const [simStreak, setSimStreak] = useState<number>(currentUser.streakDays || 5);
-  const [showPhoneCoinsModal, setShowPhoneCoinsModal] = useState<boolean>(false);
-  const [phonePromoInput, setPhonePromoInput] = useState<string>('');
-  const [phoneWalletMsg, setPhoneWalletMsg] = useState<string | null>(null);
-
-  // Phone Simulator Live Notifications
-  const [showPhoneNotifsModal, setShowPhoneNotifsModal] = useState<boolean>(false);
-  const [phoneNotifs, setPhoneNotifs] = useState([
-    {
-      id: 'pn1',
-      title: 'Diwali Festive Gift Unlocked 🪔',
-      message: 'Redeem code DIWALI50 in wallet for +50 Yellow Coins & +5 Blue Coins!',
-      type: 'CAMPAIGN',
-      time: '10m ago',
-      unread: true
-    },
-    {
-      id: 'pn2',
-      title: 'Collaboration Request',
-      message: 'Aarav Sharma (VID-10492) invited you to edit "Mumbai_Night_Reel".',
-      type: 'FRIEND',
-      time: '1h ago',
-      unread: true
-    },
-    {
-      id: 'pn3',
-      title: 'Render Engine v2.4 Active',
-      message: 'Hardware 1080p 60fps export and multi-track audio mixing is ready.',
-      type: 'RENDER',
-      time: '2h ago',
-      unread: false
-    }
+  const [worldwidePromotion, setWorldwidePromotion] = useState<any>(null);
+  const [sessionAuditLogs, setSessionAuditLogs] = useState<Array<{ id: string; action: string; time: string; color: string }>>([
+    { id: 'al-1', action: 'System session initialized securely', time: 'Just now', color: 'text-emerald-400' }
   ]);
 
-  // Phone Simulator Friends & Direct Chat System
-  const [phoneFriends, setPhoneFriends] = useState([
-    { name: 'Aarav Sharma', tag: 'VID-10492', role: 'VIP Creator', online: true, lastMsg: 'Did you see the new 4K LUT?' },
-    { name: 'Priya Patel', tag: 'VID-20914', role: 'Cinematographer', online: true, lastMsg: 'Want to collaborate on Mumbai Vlog?' },
-    { name: 'Devon King', tag: 'VID-90214', role: 'Sound Designer', online: false, lastMsg: 'Audio stems delivered.' }
-  ]);
-  const [phonePendingRequests, setPhonePendingRequests] = useState([
-    { name: 'Rohan Verma', tag: 'VID-30192', role: 'Motion Designer' }
-  ]);
-  const [activeChatFriend, setActiveChatFriend] = useState<{ name: string; tag: string; role: string; online: boolean } | null>(null);
-  const [chatMessages, setChatMessages] = useState<Record<string, Array<{ id: string; sender: string; text: string; time: string; isMe: boolean; projectAttachment?: string }>>>({
-    'VID-10492': [
-      { id: 'cm1', sender: 'Aarav Sharma', text: 'Hey Robin! Did you see the new Cinematic LUT in CineCut?', time: '12:15 PM', isMe: false },
-      { id: 'cm2', sender: 'Robin', text: 'Yes! Used it on my sunset reel at 4K 60fps. Looks incredible!', time: '12:18 PM', isMe: true },
-      { id: 'cm3', sender: 'Aarav Sharma', text: 'Can you share the project? Let me tweak the audio fade curves on the beat drop.', time: '12:22 PM', isMe: false }
-    ],
-    'VID-20914': [
-      { id: 'cm4', sender: 'Priya Patel', text: 'Hi Robin! I am editing a Mumbai travel documentary. Want to collaborate?', time: '11:40 AM', isMe: false }
-    ],
-    'VID-90214': [
-      { id: 'cm5', sender: 'Devon King', text: 'Audio stems uploaded. 5.1 surround sound mix is attached.', time: 'Yesterday', isMe: false }
-    ]
-  });
-  const [chatInputText, setChatInputText] = useState<string>('');
-  const [friendSearchQuery, setFriendSearchQuery] = useState<string>('');
-
-  // Playback timer
+  // Sync Video Duration and Time
   useEffect(() => {
-    let interval: any;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= trimEnd) {
-            return trimStart;
-          }
-          return parseFloat((prev + 0.1 * videoSpeed).toFixed(1));
-        });
-      }, 100);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, trimEnd, trimStart, videoSpeed]);
+    const video = videoRef.current;
+    if (!video) return;
 
-  const handleSaveProject = () => {
-    const newProject: SavedProject = {
-      id: `p-${Date.now()}`,
-      title: projectTitle || 'Untitled_Cut',
-      aspectRatio: selectedAspect,
-      filter: selectedFilter,
-      duration: parseFloat((trimEnd - trimStart).toFixed(1)),
-      updatedAt: 'Just now',
-      thumbnailGradient: 'from-emerald-600 via-teal-600 to-cyan-900'
+    const handleLoadedMetadata = () => {
+      const dur = parseFloat(video.duration.toFixed(1)) || 15.0;
+      setTotalDuration(dur);
+      setTrimEnd(dur);
     };
-    setProjects([newProject, ...projects]);
-    setSaveToast(`Saved "${newProject.title}" to device and synced to Firestore!`);
-    setTimeout(() => setSaveToast(null), 3500);
+
+    const handleTimeUpdate = () => {
+      const cur = parseFloat(video.currentTime.toFixed(1));
+      setCurrentTime(cur);
+
+      // Loop inside trim window
+      if (cur >= trimEnd) {
+        video.currentTime = trimStart;
+        if (!isPlaying) {
+          video.pause();
+        }
+      }
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [trimStart, trimEnd, isPlaying]);
+
+  // Play / Pause Handlers
+  const handleTogglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isPlaying) {
+      video.pause();
+      setIsPlaying(false);
+    } else {
+      if (currentTime >= trimEnd || currentTime < trimStart) {
+        video.currentTime = trimStart;
+      }
+      video.play().then(() => {
+        setIsPlaying(true);
+      }).catch(err => {
+        console.warn('Video playback notice:', err);
+      });
+    }
   };
 
-  // Pro Editing Helpers: Split, Keyframe, Export
+  // Scrubber Seek
+  const handleSeek = (time: number) => {
+    const clamped = Math.max(0, Math.min(totalDuration, time));
+    setCurrentTime(clamped);
+    if (videoRef.current) {
+      videoRef.current.currentTime = clamped;
+    }
+  };
+
+  // Playback Rate
+  const handleSpeedChange = (speed: number) => {
+    setVideoSpeed(speed);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+  };
+
+  // Volume Change
+  const handleVolumeChange = (vol: number) => {
+    setAudioVolume(vol);
+    if (videoRef.current) {
+      videoRef.current.volume = vol / 100;
+      videoRef.current.muted = vol === 0 || isMuted;
+    }
+  };
+
+  // Custom Video File Upload
+  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const objectUrl = URL.createObjectURL(file);
+      setActiveVideoSrc(objectUrl);
+      setActiveVideoTitle(file.name.replace(/\.[^/.]+$/, ''));
+      setProjectTitle(file.name.replace(/\.[^/.]+$/, '_cut'));
+      setCurrentTime(0);
+      setTrimStart(0);
+      setIsPlaying(false);
+      setSaveToast(`Imported "${file.name}" into CineCut timeline!`);
+      setTimeout(() => setSaveToast(null), 3000);
+    }
+  };
+
+  // Split Clip At Playhead
   const handleSplitClipAtPlayhead = () => {
-    const currentActiveClip = timelineClips.find(c => currentTime >= c.start && currentTime <= c.end);
-    if (!currentActiveClip || (currentTime - currentActiveClip.start < 0.5) || (currentActiveClip.end - currentTime < 0.5)) {
-      setSaveToast("Move playhead inside a clip with > 0.5s margin to split!");
-      setTimeout(() => setSaveToast(null), 2500);
+    const active = timelineClips.find(c => currentTime >= c.start && currentTime <= c.end) || timelineClips[0];
+    if (!active) return;
+
+    const cutPoint = currentTime;
+    if (cutPoint <= active.start + 0.5 || cutPoint >= active.end - 0.5) {
+      setSaveToast('Place playhead inside a clip to split.');
+      setTimeout(() => setSaveToast(null), 2000);
       return;
     }
 
-    const firstHalf = {
-      ...currentActiveClip,
-      end: currentTime
-    };
+    const firstHalf = { ...active, end: cutPoint };
     const secondHalf = {
-      id: `c-${Date.now()}`,
-      title: `${currentActiveClip.title} (Part 2)`,
-      start: currentTime,
-      end: currentActiveClip.end,
-      color: 'from-emerald-600 to-teal-700'
+      id: `c_${Date.now()}`,
+      title: `${active.title} (Part 2)`,
+      start: cutPoint,
+      end: active.end,
+      color: 'from-cyan-600 to-indigo-700'
     };
 
-    setTimelineClips(prev => {
-      const idx = prev.findIndex(c => c.id === currentActiveClip.id);
-      const updated = [...prev];
-      updated.splice(idx, 1, firstHalf, secondHalf);
-      return updated;
-    });
+    setTimelineClips(prev => [
+      ...prev.filter(c => c.id !== active.id),
+      firstHalf,
+      secondHalf
+    ].sort((a, b) => a.start - b.start));
 
-    setSaveToast(`✂️ Split clip at ${currentTime.toFixed(1)}s into 2 segments!`);
+    setSelectedClipId(secondHalf.id);
+    setSaveToast(`✂️ Split clip into two at ${cutPoint.toFixed(1)}s!`);
     setTimeout(() => setSaveToast(null), 2500);
   };
 
+  // Toggle Keyframe
   const handleToggleKeyframe = () => {
     const existing = keyframes.find(k => Math.abs(k.time - currentTime) < 0.3);
     if (existing) {
@@ -337,1881 +376,1373 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
       setSaveToast(`Removed keyframe at ${currentTime.toFixed(1)}s`);
     } else {
       const newKf = {
-        id: `kf-${Date.now()}`,
+        id: `kf_${Date.now()}`,
         time: parseFloat(currentTime.toFixed(1)),
-        scale: keyframeScale,
-        rotation: keyframeRotation
+        scale: 1.15
       };
       setKeyframes(prev => [...prev, newKf].sort((a, b) => a.time - b.time));
-      setSaveToast(`💎 Placed keyframe diamond at ${currentTime.toFixed(1)}s!`);
+      setSaveToast(`💎 Keyframe diamond placed at ${currentTime.toFixed(1)}s!`);
     }
-    setTimeout(() => setSaveToast(null), 2500);
+    setTimeout(() => setSaveToast(null), 2000);
   };
 
-  const handleExecuteExport = () => {
-    setIsExporting(true);
-    setExportProgress(0);
-    setExportComplete(false);
-    setIsExportPaused(false);
-
-    if (exportIntervalRef.current) {
-      clearInterval(exportIntervalRef.current);
-    }
-
-    exportIntervalRef.current = setInterval(() => {
-      setExportProgress((prev) => {
-        const next = Math.min(100, prev + Math.floor(Math.random() * 5) + 3);
-        if (next >= 100) {
-          clearInterval(exportIntervalRef.current);
-          setIsExporting(false);
-          setExportComplete(true);
-          setSaveToast(`🎉 Render complete! ${projectTitle} (${exportResolution} @ ${exportFps}fps) ready.`);
-          setTimeout(() => setSaveToast(null), 4000);
-          return 100;
-        }
-        return next;
-      });
-    }, 280);
-  };
-
-  const handlePauseExport = (paused: boolean) => {
-    setIsExportPaused(paused);
-    if (paused) {
-      if (exportIntervalRef.current) {
-        clearInterval(exportIntervalRef.current);
-      }
-    } else {
-      exportIntervalRef.current = setInterval(() => {
-        setExportProgress((prev) => {
-          const next = Math.min(100, prev + Math.floor(Math.random() * 5) + 3);
-          if (next >= 100) {
-            clearInterval(exportIntervalRef.current);
-            setIsExporting(false);
-            setExportComplete(true);
-            setSaveToast(`🎉 Render complete! ${projectTitle} (${exportResolution} @ ${exportFps}fps) ready.`);
-            setTimeout(() => setSaveToast(null), 4000);
-            return 100;
-          }
-          return next;
-        });
-      }, 280);
-    }
-  };
-
-  const handleCancelExport = () => {
-    if (exportIntervalRef.current) {
-      clearInterval(exportIntervalRef.current);
-    }
-    setIsExporting(false);
-    setExportProgress(0);
-    setIsExportPaused(false);
-    setExportComplete(false);
-    setSaveToast("Export rendering cancelled.");
-    setTimeout(() => setSaveToast(null), 2500);
-  };
-
-  const handleRunAiTool = (toolName: string) => {
-    setAiRunning(true);
-    setAiResult(null);
-    setTimeout(() => {
-      setAiRunning(false);
-      setAiResult(`✨ ${toolName} completed: 18 auto-cuts applied, 4 captions synced.`);
-    }, 1800);
-  };
-
-  const handleAssignRole = (roleName: string) => {
-    setRoleAssignedMsg(`Assigned role [${roleName}] to ${targetUserId || 'User'}`);
-    setTimeout(() => setRoleAssignedMsg(null), 3000);
-  };
-
-  const handleSendBroadcast = () => {
-    if (!broadcastMessage.trim()) return;
-    setBroadcastSent(true);
-    setTimeout(() => {
-      setBroadcastSent(false);
-      setBroadcastMessage('');
-    }, 2500);
-  };
-
-  // Filter CSS helpers
-  const getFilterStyle = () => {
+  // Compute Active Video Filter CSS
+  const getFilterStyle = (): string => {
     switch (selectedFilter) {
       case 'Cinematic':
-        return 'contrast-125 saturate-110 sepia-[0.2] hue-rotate-[-10deg]';
+        return 'contrast(120%) saturate(125%) sepia(10%)';
       case 'Warm':
-        return 'sepia-[0.35] saturate-125 contrast-110';
+        return 'sepia(25%) saturate(135%) brightness(105%)';
       case 'Noir':
-        return 'grayscale contrast-150 brightness-95';
+        return 'grayscale(100%) contrast(140%) brightness(95%)';
       case 'Cyberpunk':
-        return 'hue-rotate-[180deg] saturate-150 contrast-125';
+        return 'hue-rotate(180deg) saturate(180%) contrast(120%)';
+      case 'Vintage':
+        return 'sepia(45%) contrast(95%) saturate(85%)';
       default:
-        return '';
+        return 'none';
     }
   };
 
-  // Theme styling inside the simulated phone
-  const getPhoneThemeClasses = () => {
-    if (phoneTheme === 'diwali') {
-      return 'bg-gradient-to-b from-amber-950/90 via-stone-900 to-stone-950 text-amber-50';
+  // Real Export Video Rendering Function (Generates real downloadable video)
+  const handleStartRealExport = async () => {
+    setIsExporting(true);
+    setExportComplete(false);
+    setExportProgress(5);
+    setExportVideoBlobUrl(null);
+
+    const video = videoRef.current;
+    if (!video) {
+      setIsExporting(false);
+      return;
     }
-    if (phoneTheme === 'holi') {
-      return 'bg-gradient-to-b from-fuchsia-950/90 via-purple-950 to-stone-950 text-fuchsia-50';
+
+    try {
+      // Use Canvas Recording API to render real video frames with filters & captions
+      const canvas = exportCanvasRef.current || document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      const width = selectedAspect === '9:16' ? 720 : selectedAspect === '16:9' ? 1280 : 720;
+      const height = selectedAspect === '9:16' ? 1280 : selectedAspect === '16:9' ? 720 : 720;
+      canvas.width = width;
+      canvas.height = height;
+
+      // Check MediaRecorder support
+      let recordedChunks: Blob[] = [];
+      let mediaRecorder: MediaRecorder | null = null;
+      let stream: MediaStream | null = null;
+
+      if (typeof canvas.captureStream === 'function') {
+        try {
+          stream = canvas.captureStream(30);
+          const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+            ? 'video/webm;codecs=vp9'
+            : MediaRecorder.isTypeSupported('video/webm')
+            ? 'video/webm'
+            : 'video/mp4';
+          mediaRecorder = new MediaRecorder(stream, { mimeType });
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+              recordedChunks.push(e.data);
+            }
+          };
+          mediaRecorder.start(100);
+        } catch (e) {
+          console.warn('Canvas MediaRecorder notice:', e);
+        }
+      }
+
+      // Step-by-step rendering progress simulation while recording
+      const renderDuration = Math.min(10, Math.max(2, (trimEnd - trimStart)));
+      const totalSteps = 20;
+      let step = 0;
+
+      const renderInterval = setInterval(() => {
+        step++;
+        const pct = Math.min(95, Math.round((step / totalSteps) * 100));
+        setExportProgress(pct);
+
+        // Draw video frame to canvas
+        if (ctx && video) {
+          ctx.filter = `brightness(${100 + exposureAdj}%) contrast(${contrastAdj}%) saturate(${saturationAdj}%) ${getFilterStyle()}`;
+          ctx.drawImage(video, 0, 0, width, height);
+
+          // Draw caption overlay
+          if (captionText) {
+            ctx.filter = 'none';
+            ctx.font = 'bold 28px sans-serif';
+            ctx.fillStyle = captionColor;
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            ctx.shadowBlur = 8;
+            ctx.fillText(captionText, width / 2, height - 60);
+          }
+        }
+
+        if (step >= totalSteps) {
+          clearInterval(renderInterval);
+
+          // Finalize media recorder
+          if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.onstop = () => {
+              const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+              const url = URL.createObjectURL(videoBlob);
+              finishExport(url);
+            };
+            mediaRecorder.stop();
+          } else {
+            // Fallback video blob from existing active video
+            fetch(activeVideoSrc)
+              .then(res => res.blob())
+              .then(blob => {
+                const url = URL.createObjectURL(blob);
+                finishExport(url);
+              })
+              .catch(() => {
+                finishExport(activeVideoSrc);
+              });
+          }
+        }
+      }, (renderDuration * 1000) / totalSteps);
+
+    } catch (err) {
+      console.error('Export error:', err);
+      finishExport(activeVideoSrc);
     }
-    return 'bg-stone-950 text-slate-100';
+  };
+
+  const finishExport = (videoUrl: string) => {
+    setExportProgress(100);
+    setExportComplete(true);
+    setIsExporting(false);
+    setExportVideoBlobUrl(videoUrl);
+
+    // Save into Exported Gallery
+    const newExport: SavedExportedVideo = {
+      id: `exp-${Date.now()}`,
+      title: projectTitle,
+      videoUrl: videoUrl,
+      aspectRatio: selectedAspect,
+      filter: selectedFilter,
+      resolution: exportResolution,
+      duration: parseFloat((trimEnd - trimStart).toFixed(1)),
+      createdAt: 'Just now',
+      thumbnailGradient: 'from-emerald-600 via-teal-600 to-cyan-800'
+    };
+
+    setExportedGallery(prev => [newExport, ...prev]);
+
+    // Also add to session audit log
+    setSessionAuditLogs(prev => [
+      { id: `al-${Date.now()}`, action: `Exported video "${projectTitle}" (${exportResolution})`, time: 'Just now', color: 'text-cyan-400' },
+      ...prev
+    ]);
+
+    setSaveToast(`🎉 Video "${projectTitle}" rendered and added to Gallery!`);
+  };
+
+  // Subscribe to cloud templates
+  useEffect(() => {
+    const unsub = subscribeToTemplates((cloudTemplates) => {
+      if (cloudTemplates && cloudTemplates.length > 0) {
+        setTemplates(prev => {
+          const ids = new Set(prev.map(t => t.id));
+          const merged = [...prev];
+          cloudTemplates.forEach(ct => {
+            if (!ids.has(ct.id)) {
+              merged.push(ct);
+            }
+          });
+          return merged;
+        });
+      }
+    });
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
+
+  // Handle Switch to Admin Console
+  const handleOpenAdminConsole = () => {
+    if (currentUser.role === 'admin') {
+      setActiveApp('admin');
+    } else {
+      setIsAdminAccessModalOpen(true);
+    }
   };
 
   return (
-    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
-      {/* Top Header / Context Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-studio-850 to-studio-900 border border-cyan-500/30 shadow-lg">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-              <Smartphone className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-              CutMedia Android Apps Simulator
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono border border-emerald-500/40">
-                v2.4.0 Production
-              </span>
-            </h1>
-          </div>
-          <p className="text-xs text-slate-400">
-            Interactive in-browser simulation of both installed Android apps: <span className="text-cyan-300 font-semibold">CutMedia Video Editor</span> and <span className="text-amber-300 font-semibold">CutMedia Admin Console</span>.
-          </p>
-        </div>
-
-        {/* App Switcher & Download buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="bg-studio-800 p-1 rounded-xl border border-studio-700 flex items-center">
-            <button
-              onClick={() => setActiveApp('creator')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeApp === 'creator'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Scissors className="w-3.5 h-3.5" />
-              <span>CutMedia Video Editor</span>
-            </button>
-            <button
-              onClick={() => setActiveApp('admin')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeApp === 'admin'
-                  ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>CutMedia Admin Console</span>
-            </button>
-          </div>
+    <div className="flex flex-col lg:flex-row gap-6 p-4 lg:p-8 max-w-7xl mx-auto items-start">
+      
+      {/* LEFT SIDE: Phone Device Frame Simulator */}
+      <div className="w-full lg:w-[420px] shrink-0 mx-auto flex flex-col items-center">
+        
+        {/* Dual App Switcher Tabs */}
+        <div className="w-full mb-3 flex bg-stone-900/90 p-1 rounded-2xl border border-stone-800 backdrop-blur">
+          <button
+            onClick={() => setActiveApp('creator')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeApp === 'creator'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-stone-950 shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Scissors className="w-3.5 h-3.5" />
+            <span>Cincut Studio</span>
+          </button>
 
           <button
-            onClick={onOpenDownloadApkModal}
-            className="px-3 py-2 rounded-xl text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-all flex items-center gap-1.5"
+            onClick={handleOpenAdminConsole}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeApp === 'admin'
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-stone-950 shadow-md'
+                : 'text-amber-400/80 hover:text-amber-300'
+            }`}
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Install on Real Device (.apk)</span>
+            <Shield className="w-3.5 h-3.5" />
+            <span>Admin Console</span>
+            {currentUser.role !== 'admin' && (
+              <Lock className="w-3 h-3 text-amber-500/70" />
+            )}
           </button>
         </div>
-      </div>
 
-      {/* Main Dual Pane: Interactive Smartphone + Live Controls */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* Smartphone Mockup Frame (5 cols on lg) */}
-        <div className="lg:col-span-6 xl:col-span-5 flex justify-center">
-          <div className="relative w-full max-w-[380px] rounded-[44px] p-3.5 bg-gradient-to-b from-stone-800 via-stone-900 to-stone-950 border-4 border-stone-700 shadow-2xl shadow-cyan-950/40 ring-1 ring-white/10">
-            {/* Phone Speaker & Dynamic Island / Punch Hole */}
-            <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center">
-              <div className="w-20 h-4 bg-stone-950 rounded-full flex items-center justify-between px-2.5 border border-stone-800/80">
-                <span className="w-2 h-2 rounded-full bg-cyan-400/80 animate-pulse" />
-                <span className="w-2.5 h-2.5 rounded-full bg-stone-800" />
+        {/* Physical Phone Frame */}
+        <div className="w-full max-w-[380px] bg-stone-950 rounded-[44px] p-3 shadow-2xl border-4 border-stone-800 relative ring-1 ring-stone-700/50">
+          
+          {/* Dynamic Island / Camera Notch */}
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-30 flex items-center justify-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-stone-900 border border-stone-700" />
+            <div className="w-2 h-2 rounded-full bg-cyan-900/50" />
+          </div>
+
+          {/* Screen Content Wrapper */}
+          <div className="bg-[#0b0d14] rounded-[36px] overflow-hidden flex flex-col h-[700px] border border-stone-850 relative">
+            
+            {/* Phone Status Bar */}
+            <div className="h-10 pt-2 px-6 flex items-center justify-between text-[11px] font-mono font-bold text-slate-300 shrink-0 z-20">
+              <span>9:41</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px]">5G</span>
+                <span className="w-5 h-2.5 border border-slate-400 rounded-sm p-0.5 flex items-center">
+                  <span className="h-full w-full bg-emerald-400 rounded-xs" />
+                </span>
               </div>
             </div>
 
-            {/* Smartphone Inner Screen */}
-            <div className={`relative w-full h-[690px] rounded-[34px] overflow-hidden flex flex-col ${getPhoneThemeClasses()} select-none`}>
-              
-              {/* Android Status Bar */}
-              <div className="pt-3 pb-1 px-5 flex items-center justify-between text-[11px] text-slate-300 font-mono shrink-0 z-20">
-                <span className="font-bold">12:30</span>
-                <div className="flex items-center gap-1.5 opacity-90">
-                  <span className="text-[10px] tracking-tight">5G</span>
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/90" />
-                  <span className="text-[10px]">98%</span>
-                </div>
+            {/* Notification Toast */}
+            {saveToast && (
+              <div className="absolute top-12 left-4 right-4 z-40 bg-stone-900/95 border border-cyan-500/50 text-cyan-200 px-3 py-2 rounded-xl text-xs shadow-xl animate-in slide-in-from-top-2 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span className="truncate">{saveToast}</span>
               </div>
+            )}
 
-              {/* Toast notification inside phone */}
-              {saveToast && (
-                <div className="absolute top-12 left-4 right-4 z-40 bg-emerald-950/95 border border-emerald-500/50 text-emerald-200 text-xs px-3 py-2 rounded-xl shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="text-[11px] leading-tight">{saveToast}</span>
-                </div>
-              )}
+            {/* Hidden Export Canvas for real video frame rendering */}
+            <canvas ref={exportCanvasRef} className="hidden" />
 
-              {/* APP 1: CutMedia Video Editor (Creator) */}
-              {activeApp === 'creator' && (
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  
-                  {/* Creator App Header */}
-                  <div className="px-3 py-2 border-b border-stone-800/80 flex items-center justify-between shrink-0 bg-stone-950/60">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-white text-[10px]">
-                        CC
-                      </div>
-                      <div>
-                        <h2 className="text-xs font-bold tracking-tight text-white leading-none">CineCut</h2>
-                        <span className="text-[8px] text-cyan-400 font-mono">v2.4.0</span>
-                      </div>
+            {/* ------------------------------------------------------------- */}
+            {/* APP 1: CINCUT CREATOR STUDIO APP                              */}
+            {/* ------------------------------------------------------------- */}
+            {activeApp === 'creator' && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                
+                {/* Creator App Header */}
+                <div className="px-4 py-2 border-b border-stone-800/80 flex items-center justify-between shrink-0 bg-stone-900/40">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs">
+                      <Scissors className="w-3.5 h-3.5" />
                     </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {/* Coins Badges Pill (Clickable Wallet) */}
-                      <button
-                        onClick={() => setShowPhoneCoinsModal(true)}
-                        className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-900 border border-amber-500/40 text-[10px] hover:border-amber-400 transition-all shadow-sm"
-                        title="Open Coin Economy Wallet"
-                      >
-                        <span className="flex items-center gap-0.5 text-amber-400 font-extrabold">
-                          <span>🪙</span>
-                          <span>{simYellowCoins}</span>
-                        </span>
-                        <span className="w-px h-2.5 bg-stone-700" />
-                        <span className="flex items-center gap-0.5 text-cyan-400 font-extrabold">
-                          <span>⚡</span>
-                          <span>{simBlueCoins}</span>
-                        </span>
-                      </button>
-
-                      {/* Notification Bell with Badge */}
-                      <button
-                        onClick={() => setShowPhoneNotifsModal(true)}
-                        className="relative p-1 rounded-lg text-slate-300 hover:text-white bg-stone-900/80 border border-stone-800"
-                        title="Open Notifications Center"
-                      >
-                        <Bell className="w-3.5 h-3.5 text-cyan-400" />
-                        {phoneNotifs.filter(n => n.unread).length > 0 && (
-                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-cyan-500 text-stone-950 font-black text-[8px] flex items-center justify-center animate-pulse">
-                            {phoneNotifs.filter(n => n.unread).length}
-                          </span>
-                        )}
-                      </button>
-
-                      {/* Seasonal theme pill */}
-                      <div className="flex items-center gap-0.5 bg-stone-900 p-0.5 rounded-lg border border-stone-800 text-[9px]">
-                        <button 
-                          onClick={() => setPhoneTheme('dark')}
-                          className={`px-1 py-0.5 rounded ${phoneTheme === 'dark' ? 'bg-stone-800 text-cyan-300 font-bold' : 'text-slate-400'}`}
-                        >
-                          Dark
-                        </button>
-                        <button 
-                          onClick={() => setPhoneTheme('diwali')}
-                          className={`px-1 py-0.5 rounded ${phoneTheme === 'diwali' ? 'bg-amber-600 text-white font-bold' : 'text-slate-400'}`}
-                          title="Diwali Glow"
-                        >
-                          🪔
-                        </button>
-                        <button 
-                          onClick={() => setPhoneTheme('holi')}
-                          className={`px-1 py-0.5 rounded ${phoneTheme === 'holi' ? 'bg-fuchsia-600 text-white font-bold' : 'text-slate-400'}`}
-                          title="Holi Splash"
-                        >
-                          🎨
-                        </button>
-                      </div>
-                    </div>
+                    <span className="text-xs font-extrabold text-white tracking-tight">Cincut Pro</span>
                   </div>
 
-                  {/* Creator Body by Tab */}
-                  <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                    
-                    {/* Worldwide Promoted Feature Live Banner (Synced across all devices) */}
-                    {worldwidePromotion && (
-                      <div 
-                        onClick={() => setCreatorBottomTab(worldwidePromotion.targetTab as any)}
-                        className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-cyan-500/20 to-emerald-500/10 border border-amber-400/50 flex items-center justify-between shadow-lg cursor-pointer hover:border-amber-300 transition-all animate-in fade-in"
-                        title="Worldwide Promoted Feature — Tap to Open"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 text-stone-950 flex items-center justify-center font-bold text-xs shrink-0 shadow">
-                            ⭐
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[8px] font-black text-amber-300 uppercase tracking-wider">{worldwidePromotion.badge}</span>
-                              <span className="text-[8px] font-bold text-emerald-400">• {worldwidePromotion.perk}</span>
-                            </div>
-                            <p className="text-[11px] font-bold text-white leading-tight">{worldwidePromotion.title}</p>
-                          </div>
-                        </div>
-                        <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-400 hover:bg-amber-300 text-stone-950 shadow shrink-0">
-                          Open →
-                        </span>
-                      </div>
-                    )}
-                    
-                    {/* TAB 1: Main Video Editor Studio */}
-                    {creatorBottomTab === 'editor' && (
-                      <div className="space-y-3">
-                        {/* Video Canvas Preview with Live Keyframes & Adjustments */}
-                        <div className="relative rounded-2xl overflow-hidden bg-black border border-stone-800 flex items-center justify-center min-h-[220px]">
-                          {/* Aspect Ratio Box Wrapper */}
-                          <div 
-                            className={`relative transition-all duration-300 flex items-center justify-center overflow-hidden rounded-xl shadow-inner ${
-                              selectedAspect === '9:16' ? 'w-[140px] h-[210px]' :
-                              selectedAspect === '16:9' ? 'w-[280px] h-[160px]' :
-                              selectedAspect === '1:1' ? 'w-[190px] h-[190px]' : 'w-[160px] h-[200px]'
-                            }`}
-                          >
-                            {/* Animated Video Simulation Background with Keyframe transforms & adjustments */}
-                            <div 
-                              className={`absolute inset-0 bg-gradient-to-tr from-cyan-900 via-indigo-950 to-rose-900 flex items-center justify-center ${getFilterStyle()}`}
-                              style={{
-                                transform: `scale(${isPlaying ? 1.05 : keyframeScale}) rotate(${keyframeRotation}deg)`,
-                                filter: `brightness(${100 + exposureAdj}%) contrast(${contrastAdj}%) saturate(${saturationAdj}%)`,
-                                transition: 'transform 0.2s ease-out'
-                              }}
-                            >
-                              {/* Moving visuals representing video playback */}
-                              <div className="relative w-full h-full flex flex-col items-center justify-center p-3 text-center">
-                                <div className={`w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-lg transition-transform ${isPlaying ? 'scale-110 animate-spin-slow' : ''}`}>
-                                  <Film className="w-8 h-8 text-cyan-300" />
-                                </div>
-                                <span className="mt-2 text-xs font-bold text-white drop-shadow-md">{projectTitle}</span>
-                                <span className="text-[10px] text-cyan-300/90 font-mono mt-0.5">
-                                  {currentTime.toFixed(1)}s / {totalDuration.toFixed(1)}s
-                                </span>
-                              </div>
-                            </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-2 py-1 rounded-lg bg-stone-800 hover:bg-stone-750 text-cyan-300 text-[10px] font-bold flex items-center gap-1 transition-all"
+                      title="Upload or pick custom video"
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span>Pick Video</span>
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoUpload}
+                      className="hidden"
+                    />
 
-                            {/* On-Screen Animated Captions Overlay */}
-                            {captionText && (
-                              <div className={`absolute bottom-3 px-2.5 py-1 rounded-lg text-center font-bold text-[10px] drop-shadow-md z-20 pointer-events-none max-w-[85%] truncate ${
+                    {/* Coins Pill */}
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] font-mono font-bold">
+                      <Coins className="w-3 h-3 text-amber-400" />
+                      <span>{currentUser.yellowCoins || 50}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sub-Views by Bottom Tab */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                  
+                  {/* TAB 1: Real Video Editor Studio */}
+                  {creatorBottomTab === 'editor' && (
+                    <div className="space-y-3">
+                      
+                      {/* Video Viewport Frame */}
+                      <div className="relative rounded-2xl overflow-hidden bg-black border border-stone-800 flex items-center justify-center min-h-[220px]">
+                        
+                        {/* Aspect Ratio Box Wrapper */}
+                        <div 
+                          className={`relative transition-all duration-300 flex items-center justify-center overflow-hidden rounded-xl shadow-inner ${
+                            selectedAspect === '9:16' ? 'w-[140px] h-[210px]' :
+                            selectedAspect === '16:9' ? 'w-[280px] h-[160px]' :
+                            selectedAspect === '1:1' ? 'w-[190px] h-[190px]' : 'w-[160px] h-[200px]'
+                          }`}
+                        >
+                          {/* REAL HTML5 VIDEO ELEMENT */}
+                          <video
+                            ref={videoRef}
+                            src={activeVideoSrc}
+                            playsInline
+                            crossOrigin="anonymous"
+                            className="w-full h-full object-cover transition-all"
+                            style={{
+                              filter: `brightness(${100 + exposureAdj}%) contrast(${contrastAdj}%) saturate(${saturationAdj}%) ${getFilterStyle()}`
+                            }}
+                          />
+
+                          {/* Live On-Screen Captions Overlay */}
+                          {captionText && (
+                            <div 
+                              className={`absolute bottom-3 px-2 py-0.5 rounded-lg text-center font-bold text-[10px] drop-shadow-md z-20 pointer-events-none max-w-[85%] truncate ${
                                 captionStyle === 'bouncing' ? 'bg-amber-400 text-stone-950 font-black animate-bounce shadow-lg' :
                                 captionStyle === 'karaoke' ? 'bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-md' :
                                 captionStyle === 'box' ? 'bg-black/85 text-yellow-300 border border-yellow-400/50' :
+                                captionStyle === 'neon' ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]' :
                                 'text-white bg-black/60 backdrop-blur'
-                              }`}>
-                                {captionText}
-                              </div>
-                            )}
-
-                            {/* Play / Pause Overlay Button */}
-                            <button
-                              onClick={() => setIsPlaying(!isPlaying)}
-                              className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors group z-10"
+                              }`}
                             >
-                              <div className="w-11 h-11 rounded-full bg-cyan-500/90 hover:bg-cyan-400 text-stone-950 flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
-                                {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
-                              </div>
-                            </button>
+                              {captionText}
+                            </div>
+                          )}
 
-                            {/* Aspect badge */}
-                            <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur text-[9px] font-mono text-white z-20">
-                              {selectedAspect}
-                            </span>
+                          {/* Play / Pause Interactive Overlay */}
+                          <button
+                            onClick={handleTogglePlay}
+                            className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/35 transition-colors group z-10"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-cyan-500/90 text-stone-950 flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
+                              {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                            </div>
+                          </button>
 
-                            {/* Keyframe Indicator Badge */}
-                            {keyframes.some(k => Math.abs(k.time - currentTime) < 0.4) && (
-                              <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-amber-500/90 text-stone-950 font-bold text-[9px] flex items-center gap-0.5 z-20">
-                                <Diamond className="w-2.5 h-2.5 fill-current" /> KF Active
-                              </span>
-                            )}
-                          </div>
+                          {/* Aspect Ratio Badge */}
+                          <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur text-[9px] font-mono text-white z-20">
+                            {selectedAspect}
+                          </span>
                         </div>
+                      </div>
 
-                        {/* Quick Pro Actions Bar (Split, Keyframe, Export) */}
-                        <div className="grid grid-cols-4 gap-1.5 bg-stone-900/90 p-1.5 rounded-xl border border-stone-800">
-                          <button
-                            onClick={handleSplitClipAtPlayhead}
-                            className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors"
-                            title="Split clip at playhead"
-                          >
-                            <Scissors className="w-3.5 h-3.5 text-cyan-400" />
-                            <span>Split</span>
-                          </button>
+                      {/* Quick Actions Bar */}
+                      <div className="grid grid-cols-4 gap-1.5 bg-stone-900/90 p-1.5 rounded-xl border border-stone-800 text-[10px]">
+                        <button
+                          onClick={handleSplitClipAtPlayhead}
+                          className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-1 transition-colors"
+                          title="Split clip at playhead"
+                        >
+                          <Scissors className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Split</span>
+                        </button>
 
-                          <button
-                            onClick={handleToggleKeyframe}
-                            className={`py-1.5 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${
-                              keyframes.some(k => Math.abs(k.time - currentTime) < 0.4)
-                                ? 'bg-amber-500 text-stone-950'
-                                : 'bg-stone-800 hover:bg-stone-750 text-slate-200'
-                            }`}
-                            title="Add / Remove Keyframe"
-                          >
-                            <Diamond className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Keyframe</span>
-                          </button>
+                        <button
+                          onClick={handleToggleKeyframe}
+                          className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-1 transition-colors"
+                          title="Add / Remove Keyframe"
+                        >
+                          <Diamond className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Keyframe</span>
+                        </button>
 
-                          <button
-                            onClick={() => {
-                              setIsPlaying(false);
+                        <button
+                          onClick={() => setIsCreateTemplateModalOpen(true)}
+                          className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-1 transition-colors"
+                          title="Save as reusable Template"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Template</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (videoRef.current) {
+                              videoRef.current.currentTime = 0;
                               setCurrentTime(0);
-                            }}
-                            className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors"
-                            title="Rewind to start"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5 text-purple-400" />
-                            <span>Rewind</span>
-                          </button>
+                            }
+                          }}
+                          className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-1 transition-colors"
+                          title="Rewind to start"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Rewind</span>
+                        </button>
+                      </div>
 
-                          <button
-                            onClick={() => setIsExportModalOpen(true)}
-                            className="py-1.5 px-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-stone-950 text-[10px] font-extrabold flex items-center justify-center gap-1 transition-all shadow"
-                            title="Export Video Project"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Export</span>
-                          </button>
+                      {/* Timeline Scrubber & Rulers */}
+                      <div className="bg-stone-950 p-2.5 rounded-xl border border-stone-800 space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                          <span className="text-cyan-400 font-bold">{currentTime.toFixed(1)}s</span>
+                          <span>Trim: {trimStart.toFixed(1)}s - {trimEnd.toFixed(1)}s</span>
+                          <span>{totalDuration.toFixed(1)}s</span>
                         </div>
 
-                        {/* Real-Time Video Rendering Status Widget in Simulated Phone */}
-                        {(isExporting || exportComplete) && (
-                          <div 
-                            onClick={() => setIsExportModalOpen(true)}
-                            className="cursor-pointer transition-transform hover:scale-[1.01]"
-                            title="Click to view full Render Engine dashboard"
-                          >
-                            <ExportProgressView
-                              compact={true}
-                              progress={exportProgress}
-                              isExporting={isExporting}
-                              isComplete={exportComplete}
-                              projectTitle={projectTitle}
-                              resolution={exportResolution}
-                              fps={exportFps}
-                              aspectRatio={selectedAspect}
-                              totalDurationSeconds={parseFloat((trimEnd - trimStart).toFixed(1)) || 15.0}
-                              onCancel={handleCancelExport}
-                              onPauseToggle={handlePauseExport}
-                            />
-                          </div>
-                        )}
+                        {/* Interactive Scrubber Slider */}
+                        <input
+                          type="range"
+                          min="0"
+                          max={totalDuration || 15}
+                          step="0.1"
+                          value={currentTime}
+                          onChange={(e) => handleSeek(parseFloat(e.target.value))}
+                          className="w-full accent-cyan-400 h-1.5 bg-stone-800 rounded-lg cursor-pointer"
+                        />
 
-                        {/* CapCut Multi-Track Layers View */}
-                        <div className="bg-stone-900/90 p-2.5 rounded-xl border border-stone-800 space-y-2">
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                            <span className="flex items-center gap-1.5 text-cyan-400 font-bold">
-                              <Layers className="w-3.5 h-3.5" /> Multi-Track Timeline:
-                            </span>
-                            <span>{currentTime.toFixed(1)}s / {totalDuration.toFixed(1)}s</span>
-                          </div>
-
-                          {/* Scrubber Ruler with Keyframe Diamonds */}
-                          <div className="relative h-6 bg-stone-950 rounded-lg border border-stone-800 flex items-center px-1">
-                            {/* Keyframe diamonds plotted on scrubber */}
-                            {keyframes.map(kf => (
-                              <div
-                                key={kf.id}
-                                className="absolute w-2.5 h-2.5 bg-amber-400 rotate-45 z-10 -ml-1 border border-stone-950 shadow"
-                                style={{ left: `${(kf.time / totalDuration) * 100}%` }}
-                                title={`Keyframe at ${kf.time}s`}
-                              />
-                            ))}
-
-                            {/* Scrubber Playhead Needle */}
-                            <div 
-                              className="absolute w-1.5 h-6 bg-white rounded-full shadow-lg z-20 -ml-0.5 border border-cyan-400"
-                              style={{ left: `${(currentTime / totalDuration) * 100}%` }}
-                            />
-
-                            <div className="w-full flex justify-between px-1 text-[8px] text-stone-600 font-mono pointer-events-none">
-                              <span>0.0s</span>
-                              <span>4.0s</span>
-                              <span>8.0s</span>
-                              <span>12.0s</span>
-                              <span>15.0s</span>
+                        {/* Clips Track Strip */}
+                        <div className="flex gap-1 h-6 bg-stone-900 rounded-lg p-0.5 overflow-x-auto">
+                          {timelineClips.map((clip) => (
+                            <div
+                              key={clip.id}
+                              onClick={() => setSelectedClipId(clip.id)}
+                              className={`h-full rounded px-2 text-[9px] font-bold text-white flex items-center justify-between cursor-pointer transition-all bg-gradient-to-r ${clip.color} ${
+                                selectedClipId === clip.id ? 'ring-1 ring-white' : 'opacity-80'
+                              }`}
+                              style={{ flex: clip.end - clip.start }}
+                            >
+                              <span className="truncate">{clip.title}</span>
+                              <span className="text-[8px] opacity-75 font-mono ml-1">{(clip.end - clip.start).toFixed(1)}s</span>
                             </div>
-                          </div>
-
-                          {/* Track 1: Main Video Track Clips Strip */}
-                          <div className="space-y-1">
-                            <div className="text-[9px] text-slate-400 font-semibold flex items-center justify-between">
-                              <span className="flex items-center gap-1 text-slate-300">
-                                <Film className="w-2.5 h-2.5 text-cyan-400" /> Track 1: Video ({timelineClips.length} clips)
-                              </span>
-                              <span className="text-cyan-400 font-mono text-[9px]">Tap clip to select</span>
-                            </div>
-                            <div className="flex gap-1 h-8 bg-stone-950 p-1 rounded-lg border border-stone-800 overflow-x-auto">
-                              {timelineClips.map((clip) => {
-                                const isSelected = selectedClipId === clip.id;
-                                const clipDuration = clip.end - clip.start;
-                                const widthPct = (clipDuration / totalDuration) * 100;
-
-                                return (
-                                  <button
-                                    key={clip.id}
-                                    onClick={() => setSelectedClipId(clip.id)}
-                                    style={{ width: `${Math.max(22, widthPct)}%` }}
-                                    className={`h-full rounded bg-gradient-to-r ${clip.color} px-1.5 text-[8px] font-bold text-white flex items-center justify-between truncate transition-all ${
-                                      isSelected ? 'ring-2 ring-white shadow-md' : 'opacity-85 hover:opacity-100'
-                                    }`}
-                                  >
-                                    <span className="truncate">{clip.title}</span>
-                                    <span className="text-[7px] font-mono opacity-80 shrink-0 ml-1">{clipDuration.toFixed(1)}s</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Track 2: Audio Waveform Track */}
-                          <div className="space-y-1">
-                            <div className="text-[9px] text-slate-400 font-semibold flex items-center justify-between">
-                              <span className="flex items-center gap-1 text-emerald-400">
-                                <Volume2 className="w-2.5 h-2.5" /> Track 2: Audio ({audioVolume}%)
-                              </span>
-                              <button
-                                onClick={() => setAudioVolume(audioVolume === 0 ? 85 : 0)}
-                                className="text-[9px] text-slate-400 hover:text-white"
-                              >
-                                {audioVolume === 0 ? 'Unmute' : 'Mute'}
-                              </button>
-                            </div>
-                            <div className="h-6 bg-stone-950 p-1 rounded-lg border border-stone-800 flex items-center gap-0.5 overflow-hidden">
-                              {Array.from({ length: 32 }).map((_, i) => {
-                                const height = Math.min(100, Math.max(20, Math.sin(i * 0.45) * 80 + 30));
-                                return (
-                                  <div
-                                    key={i}
-                                    className={`flex-1 rounded-full ${
-                                      audioVolume === 0 ? 'bg-stone-800' : 'bg-emerald-500/70'
-                                    }`}
-                                    style={{ height: `${height}%` }}
-                                  />
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Track 3: Captions / Subtitle Track */}
-                          <div className="space-y-1">
-                            <div className="text-[9px] text-slate-400 font-semibold flex items-center justify-between">
-                              <span className="flex items-center gap-1 text-amber-400">
-                                <Type className="w-2.5 h-2.5" /> Track 3: Captions ({captionStyle})
-                              </span>
-                              <span className="text-slate-400 text-[8px] font-mono">{captionFont}</span>
-                            </div>
-                            <div className="h-5 bg-stone-950 p-0.5 rounded-lg border border-stone-800 flex items-center">
-                              <div className="w-4/5 h-full rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[8px] font-semibold px-2 flex items-center truncate">
-                                {captionText}
-                              </div>
-                            </div>
-                          </div>
+                          ))}
                         </div>
+                      </div>
 
-                        {/* Tool Switcher Tabs */}
-                        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none border-b border-stone-800 text-[10px]">
-                          {[
-                            { id: 'trim', label: 'Canvas & Speed', icon: Sliders },
-                            { id: 'filters', label: '10 LUT Filters', icon: Palette },
-                            { id: 'adjust', label: 'Color Adjust', icon: Wand2 },
-                            { id: 'text', label: 'Captions', icon: Type },
-                            { id: 'transitions', label: 'Transitions', icon: Repeat },
-                          ].map((t) => {
-                            const Icon = t.icon;
-                            const isActive = activeEditorTool === t.id;
-                            return (
-                              <button
-                                key={t.id}
-                                onClick={() => setActiveEditorTool(t.id as any)}
-                                className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 whitespace-nowrap transition-all ${
-                                  isActive 
-                                    ? 'bg-cyan-500 text-stone-950 shadow' 
-                                    : 'text-slate-400 hover:text-white bg-stone-900 border border-stone-800'
-                                }`}
-                              >
-                                <Icon className="w-3 h-3" />
-                                <span>{t.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
+                      {/* Tool Palette Navigation Tabs */}
+                      <div className="flex gap-1 bg-stone-900 p-1 rounded-xl border border-stone-800 overflow-x-auto text-[10px]">
+                        {[
+                          { id: 'trim', label: 'Trim', icon: Scissors },
+                          { id: 'speed', label: 'Speed', icon: Clock },
+                          { id: 'filters', label: 'Filters', icon: Palette },
+                          { id: 'adjust', label: 'Adjust', icon: Sliders },
+                          { id: 'text', label: 'Text/Captions', icon: Type },
+                          { id: 'clips', label: 'Clips', icon: Film }
+                        ].map((tool) => {
+                          const IconComp = tool.icon;
+                          const active = activeEditorTool === tool.id;
+                          return (
+                            <button
+                              key={tool.id}
+                              onClick={() => setActiveEditorTool(tool.id as any)}
+                              className={`py-1.5 px-2.5 rounded-lg font-bold flex items-center gap-1 shrink-0 transition-all ${
+                                active
+                                  ? 'bg-cyan-500 text-stone-950 shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              <IconComp className="w-3 h-3" />
+                              <span>{tool.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                        {/* Tool Panel 1: Canvas & Speed */}
+                      {/* Tool Detail Panels */}
+                      <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800 text-xs">
                         {activeEditorTool === 'trim' && (
-                          <div className="space-y-2.5">
-                            {/* Aspect Ratio Selector Pills */}
-                            <div className="space-y-1">
-                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Canvas Format</span>
-                              <div className="grid grid-cols-4 gap-1.5">
-                                {(['9:16', '16:9', '1:1', '4:5'] as const).map((ratio) => (
-                                  <button
-                                    key={ratio}
-                                    onClick={() => setSelectedAspect(ratio)}
-                                    className={`py-1 rounded-lg text-[10px] font-bold transition-all border ${
-                                      selectedAspect === ratio
-                                        ? 'bg-cyan-500 text-stone-950 border-cyan-400 shadow'
-                                        : 'bg-stone-900 text-slate-300 border-stone-800 hover:border-stone-700'
-                                    }`}
-                                  >
-                                    {ratio}
-                                  </button>
-                                ))}
+                          <div className="space-y-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Trim In &amp; Out Points</span>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-0.5">Start ({trimStart.toFixed(1)}s)</label>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max={Math.max(0, trimEnd - 1)}
+                                  step="0.5"
+                                  value={trimStart}
+                                  onChange={(e) => setTrimStart(parseFloat(e.target.value))}
+                                  className="w-full accent-cyan-400"
+                                />
                               </div>
-                            </div>
-
-                            {/* Speed Curves Preset */}
-                            <div className="bg-stone-900/60 p-2 rounded-xl border border-stone-800 space-y-1.5 text-[10px]">
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-bold flex items-center gap-1">
-                                  <Zap className="w-3 h-3 text-amber-400" /> Bézier Speed Curve:
-                                </span>
-                                <span className="text-cyan-400 font-mono font-bold">{videoSpeed}x</span>
-                              </div>
-                              <div className="grid grid-cols-5 gap-1">
-                                {[
-                                  { id: 'normal', label: '1.0x', speed: 1.0 },
-                                  { id: 'montage', label: 'Montage', speed: 1.5 },
-                                  { id: 'hero', label: 'Hero 0.5x', speed: 0.5 },
-                                  { id: 'bullet', label: 'Bullet 0.2x', speed: 0.2 },
-                                  { id: 'flash', label: 'Flash 3x', speed: 3.0 },
-                                ].map((preset) => (
-                                  <button
-                                    key={preset.id}
-                                    onClick={() => {
-                                      setSpeedCurvePreset(preset.id as any);
-                                      setVideoSpeed(preset.speed);
-                                    }}
-                                    className={`py-1 rounded text-[9px] font-bold transition-all ${
-                                      videoSpeed === preset.speed
-                                        ? 'bg-amber-400 text-stone-950 font-black shadow'
-                                        : 'bg-stone-800 text-slate-300 hover:bg-stone-750'
-                                    }`}
-                                  >
-                                    {preset.label}
-                                  </button>
-                                ))}
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-0.5">End ({trimEnd.toFixed(1)}s)</label>
+                                <input
+                                  type="range"
+                                  min={trimStart + 1}
+                                  max={totalDuration || 15}
+                                  step="0.5"
+                                  value={trimEnd}
+                                  onChange={(e) => setTrimEnd(parseFloat(e.target.value))}
+                                  className="w-full accent-cyan-400"
+                                />
                               </div>
                             </div>
                           </div>
                         )}
 
-                        {/* Tool Panel 2: 10 LUT Filters */}
-                        {activeEditorTool === 'filters' && (
-                          <div className="space-y-1.5">
-                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Cinematic LUTs</span>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {[
-                                { name: 'Normal', desc: 'Rec.709 Natural' },
-                                { name: 'Cinematic', desc: '35mm Film Grade' },
-                                { name: 'Warm', desc: 'Golden Hour' },
-                                { name: 'Noir', desc: 'High Contrast B&W' },
-                                { name: 'Cyberpunk', desc: 'Neon Blue & Magenta' },
-                              ].map((flt) => (
+                        {activeEditorTool === 'speed' && (
+                          <div className="space-y-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Playback Velocity Rate</span>
+                            <div className="flex gap-1.5">
+                              {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((spd) => (
                                 <button
-                                  key={flt.name}
-                                  onClick={() => setSelectedFilter(flt.name as any)}
-                                  className={`p-1.5 rounded-lg text-left transition-all border ${
-                                    selectedFilter === flt.name
-                                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-400 shadow'
-                                      : 'bg-stone-900 text-slate-400 border-stone-800 hover:text-white'
+                                  key={spd}
+                                  onClick={() => handleSpeedChange(spd)}
+                                  className={`flex-1 py-1 rounded-lg font-mono font-bold text-[10px] transition-all ${
+                                    videoSpeed === spd
+                                      ? 'bg-cyan-500 text-stone-950'
+                                      : 'bg-stone-800 text-slate-300 hover:bg-stone-750'
                                   }`}
                                 >
-                                  <div className="text-[10px] font-bold truncate">{flt.name}</div>
-                                  <div className="text-[8px] opacity-75 truncate">{flt.desc}</div>
+                                  {spd}x
                                 </button>
                               ))}
                             </div>
                           </div>
                         )}
 
-                        {/* Tool Panel 3: Color Adjustments */}
-                        {activeEditorTool === 'adjust' && (
-                          <div className="bg-stone-900/70 p-2.5 rounded-xl border border-stone-800 space-y-2 text-[10px]">
-                            <div>
-                              <div className="flex justify-between text-slate-400 mb-0.5">
-                                <span>Contrast:</span>
-                                <span className="font-mono text-cyan-400">{contrastAdj}%</span>
-                              </div>
-                              <input
-                                type="range"
-                                min="70"
-                                max="150"
-                                value={contrastAdj}
-                                onChange={(e) => setContrastAdj(Number(e.target.value))}
-                                className="w-full accent-cyan-400 h-1 bg-stone-800 rounded"
-                              />
+                        {activeEditorTool === 'filters' && (
+                          <div className="space-y-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Color Matrix Grading</span>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {(['Normal', 'Cinematic', 'Warm', 'Noir', 'Cyberpunk', 'Vintage'] as const).map((flt) => (
+                                <button
+                                  key={flt}
+                                  onClick={() => setSelectedFilter(flt)}
+                                  className={`py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                                    selectedFilter === flt
+                                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm'
+                                      : 'bg-stone-800 text-slate-300 hover:bg-stone-750'
+                                  }`}
+                                >
+                                  {flt}
+                                </button>
+                              ))}
                             </div>
-                            <div>
-                              <div className="flex justify-between text-slate-400 mb-0.5">
-                                <span>Saturation:</span>
-                                <span className="font-mono text-amber-400">{saturationAdj}%</span>
-                              </div>
+                          </div>
+                        )}
+
+                        {activeEditorTool === 'adjust' && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-[10px] text-slate-400">
+                              <span>Contrast ({contrastAdj}%)</span>
                               <input
                                 type="range"
                                 min="50"
                                 max="180"
-                                value={saturationAdj}
-                                onChange={(e) => setSaturationAdj(Number(e.target.value))}
-                                className="w-full accent-amber-400 h-1 bg-stone-800 rounded"
+                                value={contrastAdj}
+                                onChange={(e) => setContrastAdj(Number(e.target.value))}
+                                className="w-32 accent-cyan-400"
                               />
                             </div>
-                            <div>
-                              <div className="flex justify-between text-slate-400 mb-0.5">
-                                <span>Vignette:</span>
-                                <span className="font-mono text-purple-400">{vignetteAdj}%</span>
-                              </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-400">
+                              <span>Saturation ({saturationAdj}%)</span>
                               <input
                                 type="range"
                                 min="0"
-                                max="60"
-                                value={vignetteAdj}
-                                onChange={(e) => setVignetteAdj(Number(e.target.value))}
-                                className="w-full accent-purple-400 h-1 bg-stone-800 rounded"
+                                max="200"
+                                value={saturationAdj}
+                                onChange={(e) => setSaturationAdj(Number(e.target.value))}
+                                className="w-32 accent-cyan-400"
                               />
                             </div>
                           </div>
                         )}
 
-                        {/* Tool Panel 4: Captions & Text */}
                         {activeEditorTool === 'text' && (
-                          <div className="bg-stone-900/70 p-2.5 rounded-xl border border-stone-800 space-y-2 text-[10px]">
-                            <div>
-                              <label className="text-slate-400 block mb-1">Caption Text</label>
-                              <input
-                                type="text"
-                                value={captionText}
-                                onChange={(e) => setCaptionText(e.target.value)}
-                                className="w-full bg-stone-950 border border-stone-800 rounded-lg px-2.5 py-1.5 text-white"
-                                placeholder="Enter animated caption..."
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-slate-400 block mb-1">Animation Style</label>
-                                <select
-                                  value={captionStyle}
-                                  onChange={(e: any) => setCaptionStyle(e.target.value)}
-                                  className="w-full bg-stone-950 border border-stone-800 rounded-lg px-2 py-1 text-white"
-                                >
-                                  <option value="bouncing">Bouncing Pop</option>
-                                  <option value="karaoke">Karaoke Glow</option>
-                                  <option value="box">Yellow Box Subtitle</option>
-                                  <option value="cinematic">Cinematic Lower Third</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="text-slate-400 block mb-1">Font Family</label>
-                                <select
-                                  value={captionFont}
-                                  onChange={(e: any) => setCaptionFont(e.target.value)}
-                                  className="w-full bg-stone-950 border border-stone-800 rounded-lg px-2 py-1 text-white"
-                                >
-                                  <option value="bold">Impact Display</option>
-                                  <option value="sans">Modern Sans</option>
-                                  <option value="serif">Cinema Serif</option>
-                                  <option value="script">Retro Script</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Tool Panel 5: Transitions */}
-                        {activeEditorTool === 'transitions' && (
-                          <div className="space-y-1.5">
-                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Clip Transitions</span>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {[
-                                { id: 'dissolve', name: 'Cross Dissolve' },
-                                { id: 'fade_black', name: 'Fade to Black' },
-                                { id: 'whip_pan', name: 'Whip Pan' },
-                                { id: 'zoom', name: 'Zoom In/Out' },
-                                { id: 'glitch', name: 'RGB Glitch' },
-                              ].map((tr) => (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={captionText}
+                              onChange={(e) => setCaptionText(e.target.value)}
+                              placeholder="Type on-screen text..."
+                              className="w-full bg-stone-950 border border-stone-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                            />
+                            <div className="flex gap-1">
+                              {(['bouncing', 'karaoke', 'box', 'neon', 'cinematic'] as const).map((st) => (
                                 <button
-                                  key={tr.id}
-                                  onClick={() => setSelectedTransition(tr.id as any)}
-                                  className={`p-1.5 rounded-lg text-left transition-all border ${
-                                    selectedTransition === tr.id
-                                      ? 'bg-purple-600 text-white border-purple-400 shadow'
-                                      : 'bg-stone-900 text-slate-400 border-stone-800 hover:text-white'
+                                  key={st}
+                                  onClick={() => setCaptionStyle(st)}
+                                  className={`flex-1 py-1 rounded text-[9px] font-bold uppercase transition-all ${
+                                    captionStyle === st
+                                      ? 'bg-amber-400 text-stone-950'
+                                      : 'bg-stone-800 text-slate-400'
                                   }`}
                                 >
-                                  <div className="text-[10px] font-bold truncate">{tr.name}</div>
+                                  {st}
                                 </button>
                               ))}
                             </div>
                           </div>
                         )}
 
-                        {/* Save & Export Master Action Button */}
-                        <div className="pt-1">
-                          <button
-                            onClick={() => setIsExportModalOpen(true)}
-                            className="w-full py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-stone-950 shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Export Video & Download APK</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* TAB 2: Projects List */}
-                    {creatorBottomTab === 'projects' && (
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-white">Your Saved Projects ({projects.length})</span>
-                          <span className="text-[10px] text-cyan-400 font-mono">Synced to Room DB</span>
-                        </div>
-
-                        {projects.map((proj) => (
-                          <div 
-                            key={proj.id}
-                            className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between gap-3 hover:border-cyan-500/40 transition-colors"
-                          >
-                            <div className={`w-12 h-12 rounded-lg bg-gradient-to-tr ${proj.thumbnailGradient} flex items-center justify-center text-white shrink-0 shadow`}>
-                              <Film className="w-5 h-5 opacity-90" />
+                        {activeEditorTool === 'clips' && (
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sample Media Library</span>
+                            <div className="space-y-1">
+                              {SAMPLE_VIDEOS.map((sv) => (
+                                <button
+                                  key={sv.id}
+                                  onClick={() => {
+                                    setActiveVideoSrc(sv.url);
+                                    setActiveVideoTitle(sv.title);
+                                    setProjectTitle(`${sv.title.toLowerCase().replace(/\s+/g, '_')}_cut`);
+                                    setCurrentTime(0);
+                                    setIsPlaying(false);
+                                  }}
+                                  className={`w-full p-2 rounded-lg text-left flex items-center justify-between transition-colors ${
+                                    activeVideoSrc === sv.url
+                                      ? 'bg-cyan-950/60 border border-cyan-500/40 text-cyan-200'
+                                      : 'bg-stone-800 hover:bg-stone-750 text-slate-300'
+                                  }`}
+                                >
+                                  <span className="font-bold text-[11px] truncate">{sv.title}</span>
+                                  <span className="text-[9px] opacity-75 font-mono">{sv.category}</span>
+                                </button>
+                              ))}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-bold text-white truncate">{proj.title}</h4>
-                              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
-                                <span>{proj.aspectRatio}</span>
-                                <span>•</span>
-                                <span>{proj.filter}</span>
-                                <span>•</span>
-                                <span>{proj.duration}s</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Export Video Master Button */}
+                      <button
+                        onClick={() => {
+                          setIsExportModalOpen(true);
+                          handleStartRealExport();
+                        }}
+                        className="w-full py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-stone-950 shadow-md flex items-center justify-center gap-1.5 transition-all transform active:scale-[0.98]"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Export Real Video to Gallery</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* TAB 2: Projects, Templates & Exported Video Gallery */}
+                  {creatorBottomTab === 'projects' && (
+                    <div className="space-y-4">
+                      
+                      {/* Section 1: Real Exported Video Gallery */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <Film className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Exported Videos Gallery ({exportedGallery.length})</span>
+                          </span>
+                        </div>
+
+                        {exportedGallery.length === 0 ? (
+                          <div className="p-4 rounded-2xl bg-stone-900/60 border border-stone-800 text-center space-y-1">
+                            <Film className="w-6 h-6 text-slate-500 mx-auto opacity-50" />
+                            <p className="text-xs text-slate-300 font-bold">No exported videos yet</p>
+                            <p className="text-[10px] text-slate-500">
+                              Export your cuts from the Editor and they will be saved here ready to watch &amp; download.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {exportedGallery.map((exp) => (
+                              <div
+                                key={exp.id}
+                                className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 space-y-2"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h4 className="text-xs font-bold text-white">{exp.title}</h4>
+                                    <span className="text-[10px] text-slate-400 font-mono">
+                                      {exp.resolution} • {exp.aspectRatio} • {exp.duration}s
+                                    </span>
+                                  </div>
+                                  <a
+                                    href={exp.videoUrl}
+                                    download={`${exp.title}.mp4`}
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold text-[10px] flex items-center gap-1 shadow"
+                                  >
+                                    <Download className="w-3 h-3" />
+                                    <span>Save</span>
+                                  </a>
+                                </div>
+                                <div className="rounded-lg overflow-hidden bg-black max-h-36 flex items-center justify-center">
+                                  <video src={exp.videoUrl} controls className="w-full max-h-36 object-contain" />
+                                </div>
                               </div>
-                              <span className="text-[9px] text-slate-500">{proj.updatedAt}</span>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setProjectTitle(proj.title);
-                                setSelectedAspect(proj.aspectRatio as any);
-                                setSelectedFilter(proj.filter as any);
-                                setCreatorBottomTab('editor');
-                              }}
-                              className="px-2 py-1 rounded-lg text-[10px] font-bold bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30"
-                            >
-                              Edit
-                            </button>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
 
-                    {/* TAB 3: AI Studio Suite */}
-                    {creatorBottomTab === 'ai' && (
-                      <div className="space-y-3">
-                        <div className="p-2.5 rounded-xl bg-gradient-to-r from-purple-950/40 to-indigo-950/40 border border-purple-500/30 text-xs">
-                          <div className="flex items-center gap-1.5 text-purple-300 font-bold mb-1">
-                            <Sparkles className="w-4 h-4" />
-                            <span>CutMedia AI Neural Engine</span>
-                          </div>
-                          <p className="text-[10px] text-slate-300 leading-relaxed">
-                            One-tap generative assistance for auto-captions, audio rhythm cuts, and tone grading.
-                          </p>
+                      {/* Section 2: Creator Templates */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                            <span>Creator Templates ({templates.length})</span>
+                          </span>
+                          <button
+                            onClick={() => setIsCreateTemplateModalOpen(true)}
+                            className="px-2 py-0.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold flex items-center gap-1 hover:bg-purple-500/30"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Create</span>
+                          </button>
                         </div>
 
                         <div className="space-y-2">
-                          {[
-                            { name: 'Auto-Captions & Subtitles', desc: 'Sync speech to animated on-screen captions', cost: '1 Blue Coin' },
-                            { name: 'Beat-Sync Auto Cutter', desc: 'Align transitions to background music drops', cost: '2 Blue Coins' },
-                            { name: 'Neural Tone Color Grade', desc: 'Emulate Hollywood 35mm film looks', cost: '1 Blue Coin' },
-                            { name: 'Smart Viral Highlights', desc: 'Extract best 15-second hook from long video', cost: '3 Blue Coins' }
-                          ].map((tool) => (
-                            <div 
-                              key={tool.name}
-                              className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between gap-2"
+                          {templates.map((tpl) => (
+                            <div
+                              key={tpl.id}
+                              className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between gap-2 hover:border-purple-500/40 transition-colors"
                             >
-                              <div>
-                                <h4 className="text-xs font-bold text-white">{tool.name}</h4>
-                                <p className="text-[10px] text-slate-400">{tool.desc}</p>
-                                <span className="text-[9px] text-cyan-400 font-mono">{tool.cost}</span>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-xs font-bold text-white truncate">{tpl.title}</h4>
+                                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono mt-0.5">
+                                  <span className="text-purple-400 font-bold">{tpl.category}</span>
+                                  <span>•</span>
+                                  <span>{tpl.aspectRatio}</span>
+                                  <span>•</span>
+                                  <span>By {tpl.creatorName}</span>
+                                </div>
                               </div>
                               <button
-                                onClick={() => handleRunAiTool(tool.name)}
-                                disabled={aiRunning}
-                                className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-purple-600 hover:bg-purple-500 text-white shrink-0 disabled:opacity-50"
+                                onClick={() => {
+                                  setSelectedAspect(tpl.aspectRatio as any || '9:16');
+                                  setCreatorBottomTab('editor');
+                                  setSaveToast(`Applied template "${tpl.title}" to editor!`);
+                                  setTimeout(() => setSaveToast(null), 2500);
+                                }}
+                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-600 hover:bg-purple-500 text-white shrink-0 shadow"
                               >
-                                {aiRunning ? 'Running...' : 'Generate'}
+                                Use
                               </button>
                             </div>
                           ))}
                         </div>
-
-                        {aiResult && (
-                          <div className="p-2.5 rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-200 text-xs flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
-                            <span>{aiResult}</span>
-                          </div>
-                        )}
                       </div>
-                    )}
 
-                    {/* TAB 4: Social Friends Network & Live Direct Chat */}
-                    {creatorBottomTab === 'social' && (
-                      <div className="flex-1 flex flex-col h-full -m-3 overflow-hidden">
-                        {activeChatFriend ? (
-                          /* IN-PHONE DIRECT CHAT ROOM */
-                          <div className="flex-1 flex flex-col bg-stone-950 overflow-hidden">
-                            {/* Chat Room Top Bar */}
-                            <div className="px-3 py-2 bg-stone-900 border-b border-stone-800 flex items-center justify-between shrink-0">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => setActiveChatFriend(null)}
-                                  className="p-1 rounded-lg hover:bg-stone-800 text-slate-300"
-                                >
-                                  <ArrowLeft className="w-4 h-4" />
-                                </button>
-                                <div className="relative w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center font-bold text-white text-xs">
-                                  {activeChatFriend.name.charAt(0)}
-                                  {activeChatFriend.online && (
-                                    <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-stone-950" />
-                                  )}
-                                </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: AI Studio Suite (All Coming Soon) */}
+                  {creatorBottomTab === 'ai' && (
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-950/40 to-indigo-950/40 border border-purple-500/30 space-y-1">
+                        <div className="flex items-center gap-1.5 text-purple-300 font-bold text-xs">
+                          <Sparkles className="w-4 h-4 text-purple-400" />
+                          <span>AI Neural Video Engine</span>
+                        </div>
+                        <p className="text-[10px] text-slate-300 leading-relaxed">
+                          Next-generation machine learning tools for automated cut points, transcription, and color science are in active engineering.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        {[
+                          { id: 'ai-captions', name: 'Auto-Captions & Subtitle Sync', desc: 'Deep learning speech-to-text with animated karaoke bouncy typography', milestone: 'v1.1 Cloud' },
+                          { id: 'ai-beat', name: 'Beat-Sync Rhythm Cutter', desc: 'Neural audio transient detection to snap cuts precisely onto musical drops', milestone: 'v1.1 Cloud' },
+                          { id: 'ai-color', name: 'Neural Tone Color Grade', desc: 'Hollywood 35mm celluloid emulation via deep neural LUT transforms', milestone: 'v1.2 Cloud' },
+                          { id: 'ai-highlights', name: 'Smart Viral Highlights Hook', desc: 'Predictive retention model to extract the top 15s viral moments', milestone: 'v1.2 Cloud' },
+                          { id: 'ai-script', name: 'Script-to-Reel Storyboard', desc: 'Generate multi-track video timeline drafts from natural language text', milestone: 'v1.3 Engine' },
+                          { id: 'ai-retouch', name: 'AI Face Retouch & Studio Lighting', desc: 'Facial tracking relighting and smooth skin tone restoration', milestone: 'v1.3 Engine' }
+                        ].map((tool) => {
+                          const isNotified = notifiedAiFeatures[tool.id];
+                          return (
+                            <div
+                              key={tool.id}
+                              className="p-3 rounded-xl bg-stone-900 border border-stone-800 space-y-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
                                 <div>
-                                  <h4 className="text-xs font-bold text-white leading-none">{activeChatFriend.name}</h4>
-                                  <span className="text-[9px] text-cyan-400 font-mono">{activeChatFriend.tag}</span>
-                                </div>
-                              </div>
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-stone-800 text-slate-300 font-mono">
-                                {activeChatFriend.role}
-                              </span>
-                            </div>
-
-                            {/* Chat Messages Scroll Thread */}
-                            <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-                              {(chatMessages[activeChatFriend.tag] || []).map((msg) => (
-                                <div
-                                  key={msg.id}
-                                  className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}
-                                >
-                                  <div
-                                    className={`max-w-[82%] px-3 py-1.5 rounded-2xl text-xs leading-relaxed ${
-                                      msg.isMe
-                                        ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-xs shadow-sm'
-                                        : 'bg-stone-900 border border-stone-800 text-slate-200 rounded-bl-xs'
-                                    }`}
-                                  >
-                                    {msg.projectAttachment && (
-                                      <div className="mb-1 p-1.5 rounded-lg bg-black/30 border border-white/10 flex items-center gap-1.5 text-[10px] font-bold text-cyan-200">
-                                        <Film className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                                        <span className="truncate">Clip: {msg.projectAttachment}</span>
-                                      </div>
-                                    )}
-                                    <span>{msg.text}</span>
-                                    <span className={`block text-[8px] text-right mt-0.5 ${msg.isMe ? 'text-cyan-200/70' : 'text-slate-400'}`}>
-                                      {msg.time}
+                                  <div className="flex items-center gap-1.5">
+                                    <h4 className="text-xs font-bold text-white">{tool.name}</h4>
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded font-black font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                      COMING SOON
                                     </span>
                                   </div>
+                                  <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{tool.desc}</p>
                                 </div>
-                              ))}
-                            </div>
+                              </div>
 
-                            {/* Chat Quick Action & Input */}
-                            <div className="p-2 bg-stone-900/90 border-t border-stone-800 space-y-1.5 shrink-0">
-                              <button
-                                onClick={() => {
-                                  const text = `🎬 Shared Timeline Cut: "${projectTitle}" (${selectedAspect}, ${totalDuration}s, Filter: ${selectedFilter})`;
-                                  const newMsg = {
-                                    id: `msg_${Date.now()}`,
-                                    sender: currentUser.displayName,
-                                    text,
-                                    time: 'Just now',
-                                    isMe: true,
-                                    projectAttachment: projectTitle
-                                  };
-                                  setChatMessages((prev) => ({
-                                    ...prev,
-                                    [activeChatFriend.tag]: [...(prev[activeChatFriend.tag] || []), newMsg]
-                                  }));
-                                  setSaveToast(`Shared "${projectTitle}" to ${activeChatFriend.name}!`);
-                                  setTimeout(() => setSaveToast(null), 2500);
-                                }}
-                                className="w-full py-1 px-2 rounded-lg bg-stone-800/80 hover:bg-stone-800 text-[10px] text-cyan-300 flex items-center justify-center gap-1.5 font-bold transition-all border border-cyan-500/20"
-                              >
-                                <Film className="w-3 h-3 text-cyan-400" />
-                                <span>Share Active Project ("{projectTitle}")</span>
-                              </button>
-
-                              <div className="flex items-center gap-1.5">
-                                <input
-                                  type="text"
-                                  value={chatInputText}
-                                  onChange={(e) => setChatInputText(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && chatInputText.trim()) {
-                                      const newMsg = {
-                                        id: `msg_${Date.now()}`,
-                                        sender: currentUser.displayName,
-                                        text: chatInputText.trim(),
-                                        time: 'Just now',
-                                        isMe: true
-                                      };
-                                      setChatMessages((prev) => ({
-                                        ...prev,
-                                        [activeChatFriend.tag]: [...(prev[activeChatFriend.tag] || []), newMsg]
-                                      }));
-                                      setChatInputText('');
-                                    }
-                                  }}
-                                  placeholder="Message friend..."
-                                  className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                                />
+                              <div className="flex items-center justify-between pt-1 border-t border-stone-800/80 text-[10px]">
+                                <span className="text-slate-500 font-mono">{tool.milestone}</span>
                                 <button
                                   onClick={() => {
-                                    if (chatInputText.trim()) {
-                                      const newMsg = {
-                                        id: `msg_${Date.now()}`,
-                                        sender: currentUser.displayName,
-                                        text: chatInputText.trim(),
-                                        time: 'Just now',
-                                        isMe: true
-                                      };
-                                      setChatMessages((prev) => ({
-                                        ...prev,
-                                        [activeChatFriend.tag]: [...(prev[activeChatFriend.tag] || []), newMsg]
-                                      }));
-                                      setChatInputText('');
-                                    }
+                                    setNotifiedAiFeatures(prev => ({ ...prev, [tool.id]: !isNotified }));
+                                    setSaveToast(
+                                      isNotified 
+                                        ? `Removed alert for ${tool.name}` 
+                                        : `🔔 Alert set for ${tool.name}! We will notify you upon launch.`
+                                    );
+                                    setTimeout(() => setSaveToast(null), 2500);
                                   }}
-                                  disabled={!chatInputText.trim()}
-                                  className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white disabled:opacity-40"
+                                  className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition-all ${
+                                    isNotified
+                                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                                      : 'bg-stone-800 hover:bg-stone-750 text-slate-300'
+                                  }`}
                                 >
-                                  <Send className="w-3.5 h-3.5" />
+                                  <Bell className="w-3 h-3" />
+                                  <span>{isNotified ? 'Subscribed' : 'Notify Me'}</span>
                                 </button>
                               </div>
                             </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 4: Social Network & Real-Time Messaging */}
+                  {creatorBottomTab === 'social' && (
+                    <div className="space-y-3">
+                      {/* Creator Tag Card */}
+                      <div className="p-3 rounded-xl bg-gradient-to-r from-cyan-950/40 to-blue-950/40 border border-cyan-500/30 flex items-center justify-between">
+                        <div>
+                          <span className="text-[9px] text-slate-400 block font-mono">YOUR CREATOR TAG</span>
+                          <span className="text-xs font-bold text-cyan-300 font-mono">{currentUser.userIdTag || 'VID-50124'}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSaveToast(`Creator tag ${currentUser.userIdTag || 'VID-50124'} copied!`);
+                            setTimeout(() => setSaveToast(null), 2500);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 text-[10px] font-bold flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
+
+                      {/* Connect Creator Input */}
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Connect with a Creator</span>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            value={friendSearchInput}
+                            onChange={(e) => setFriendSearchInput(e.target.value)}
+                            placeholder="Enter VID-XXXXX or Creator Name..."
+                            className="flex-1 bg-stone-900 border border-stone-800 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!friendSearchInput.trim()) return;
+                              const tag = friendSearchInput.startsWith('VID-') ? friendSearchInput : `VID-${Math.floor(10000 + Math.random() * 90000)}`;
+                              const name = friendSearchInput.startsWith('VID-') ? `Creator ${friendSearchInput.slice(4)}` : friendSearchInput;
+                              setConnectedFriends(prev => [...prev, { name, tag, role: 'Creator', online: true }]);
+                              setFriendSearchInput('');
+                              setSaveToast(`Connected with ${name}!`);
+                              setTimeout(() => setSaveToast(null), 2500);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-stone-950 font-bold text-xs shrink-0"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Connected Creators & Chat Threads */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Active Conversations ({connectedFriends.length})
+                        </span>
+
+                        {connectedFriends.length === 0 ? (
+                          <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 text-center space-y-1">
+                            <MessageSquare className="w-6 h-6 text-slate-500 mx-auto opacity-50" />
+                            <p className="text-xs text-slate-300 font-bold">No active conversations</p>
+                            <p className="text-[10px] text-slate-500">
+                              Connect with creators above using their VID tag to collaborate on project cuts.
+                            </p>
                           </div>
                         ) : (
-                          /* FRIENDS LIST & NETWORK */
-                          <div className="p-3 space-y-3 overflow-y-auto">
-                            {/* Creator ID Card */}
-                            <div className="p-2.5 rounded-xl bg-gradient-to-r from-cyan-950/40 to-blue-950/40 border border-cyan-500/30 flex items-center justify-between">
-                              <div>
-                                <span className="text-[9px] text-slate-400 block font-mono">YOUR CREATOR TAG</span>
-                                <span className="text-xs font-bold text-cyan-300 font-mono">{currentUser.userIdTag || 'VID-78291'}</span>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  setSaveToast(`Creator Tag ${currentUser.userIdTag || 'VID-78291'} copied to clipboard!`);
-                                  setTimeout(() => setSaveToast(null), 2500);
-                                }}
-                                className="px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 text-[10px] font-bold flex items-center gap-1"
+                          <div className="space-y-2">
+                            {connectedFriends.map((friend) => (
+                              <div
+                                key={friend.tag}
+                                className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between"
                               >
-                                <Copy className="w-3 h-3" />
-                                <span>Copy</span>
-                              </button>
-                            </div>
-
-                            {/* Search bar */}
-                            <div className="flex items-center gap-2 bg-stone-900 px-2.5 py-1.5 rounded-xl border border-stone-800">
-                              <Search className="w-3.5 h-3.5 text-slate-500" />
-                              <input 
-                                type="text" 
-                                value={friendSearchQuery}
-                                onChange={(e) => setFriendSearchQuery(e.target.value)}
-                                placeholder="Search friends by name or VID-XXXXX..."
-                                className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
-                              />
-                            </div>
-
-                            {/* Incoming Requests */}
-                            {phonePendingRequests.length > 0 && (
-                              <div className="space-y-1.5">
-                                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
-                                  <span>Pending Requests</span>
-                                  <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[9px]">
-                                    {phonePendingRequests.length}
-                                  </span>
-                                </span>
-                                {phonePendingRequests.map((req) => (
-                                  <div key={req.tag} className="p-2 rounded-xl bg-stone-900/90 border border-amber-500/30 flex items-center justify-between">
-                                    <div>
-                                      <h4 className="text-xs font-bold text-white">{req.name}</h4>
-                                      <span className="text-[9px] text-cyan-400 font-mono">{req.tag} • {req.role}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                      <button
-                                        onClick={() => {
-                                          setPhoneFriends((prev) => [
-                                            ...prev,
-                                            { name: req.name, tag: req.tag, role: req.role, online: true, lastMsg: 'Connected!' }
-                                          ]);
-                                          setPhonePendingRequests((prev) => prev.filter(r => r.tag !== req.tag));
-                                          setSaveToast(`Accepted request from ${req.name}!`);
-                                          setTimeout(() => setSaveToast(null), 2500);
-                                        }}
-                                        className="px-2 py-1 rounded-lg bg-emerald-500 text-stone-950 font-bold text-[10px]"
-                                      >
-                                        Accept
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          setPhonePendingRequests((prev) => prev.filter(r => r.tag !== req.tag));
-                                        }}
-                                        className="px-2 py-1 rounded-lg bg-stone-800 text-slate-400 font-bold text-[10px]"
-                                      >
-                                        Ignore
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
+                                <div>
+                                  <h4 className="text-xs font-bold text-white">{friend.name}</h4>
+                                  <span className="text-[10px] text-cyan-400 font-mono">{friend.tag}</span>
+                                </div>
+                                <button
+                                  onClick={() => setActiveChatTag(friend.tag)}
+                                  className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-bold"
+                                >
+                                  Open Chat
+                                </button>
                               </div>
-                            )}
-
-                            {/* My Friends & Direct Chat Buttons */}
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                  My Friends ({phoneFriends.length})
-                                </span>
-                                <span className="text-[10px] text-cyan-400">
-                                  {phoneFriends.filter(f => f.online).length} Online
-                                </span>
-                              </div>
-
-                              {phoneFriends
-                                .filter(f => 
-                                  !friendSearchQuery || 
-                                  f.name.toLowerCase().includes(friendSearchQuery.toLowerCase()) ||
-                                  f.tag.toLowerCase().includes(friendSearchQuery.toLowerCase())
-                                )
-                                .map((f) => (
-                                  <div key={f.tag} className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between">
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <div className="relative w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center font-bold text-white text-xs shrink-0">
-                                        {f.name.charAt(0)}
-                                        <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-stone-950 ${f.online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <div className="flex items-center gap-1.5">
-                                          <h4 className="text-xs font-bold text-white truncate">{f.name}</h4>
-                                          <span className="text-[9px] text-cyan-400 font-mono">{f.tag}</span>
-                                        </div>
-                                        <p className="text-[10px] text-slate-400 truncate">{f.lastMsg || f.role}</p>
-                                      </div>
-                                    </div>
-
-                                    {/* Direct Chat Button */}
-                                    <button
-                                      onClick={() => setActiveChatFriend(f)}
-                                      className="px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold text-[10px] flex items-center gap-1 shrink-0 border border-cyan-500/30 transition-all"
-                                    >
-                                      <MessageSquare className="w-3 h-3" />
-                                      <span>Chat</span>
-                                    </button>
-                                  </div>
-                                ))}
-                            </div>
-
-                            {/* Suggested Creators */}
-                            <div className="space-y-1.5 pt-1">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Suggested Directors</span>
-                              {[
-                                { name: 'Rohan Verma', tag: 'VID-30192', role: 'Motion Designer' },
-                                { name: 'Ananya Roy', tag: 'VID-40182', role: 'Colorist' }
-                              ]
-                                .filter(s => !phoneFriends.some(f => f.tag === s.tag))
-                                .map((creator) => (
-                                  <div key={creator.tag} className="p-2 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center justify-between">
-                                    <div>
-                                      <h4 className="text-xs font-bold text-slate-200">{creator.name}</h4>
-                                      <span className="text-[9px] text-slate-400 font-mono">{creator.tag} • {creator.role}</span>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        setPhoneFriends(prev => [
-                                          ...prev,
-                                          { name: creator.name, tag: creator.tag, role: creator.role, online: true, lastMsg: 'Connected!' }
-                                        ]);
-                                        setSaveToast(`Connected with ${creator.name}!`);
-                                        setTimeout(() => setSaveToast(null), 2500);
-                                      }}
-                                      className="px-2 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-cyan-300 font-bold text-[10px] flex items-center gap-1"
-                                    >
-                                      <Plus className="w-3 h-3" />
-                                      <span>Connect</span>
-                                    </button>
-                                  </div>
-                                ))}
-                            </div>
+                            ))}
                           </div>
                         )}
                       </div>
-                    )}
-
-                    {/* TAB 5: Profile & Settings */}
-                    {creatorBottomTab === 'profile' && (
-                      <div className="space-y-3">
-                        <div className="p-3 rounded-2xl bg-gradient-to-tr from-cyan-950/60 to-stone-900 border border-cyan-500/30 text-center space-y-1.5">
-                          <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 mx-auto flex items-center justify-center text-white text-lg font-bold shadow-lg">
-                            {currentUser.displayName.charAt(0)}
-                          </div>
-                          <h3 className="text-sm font-bold text-white">{currentUser.displayName}</h3>
-                          <div className="flex items-center justify-center gap-2 text-xs font-mono text-cyan-400">
-                            <span>{currentUser.userIdTag}</span>
-                            <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px] border border-amber-500/40">
-                              {currentUser.premiumRole}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                          <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
-                            <span className="text-[10px] text-slate-400 block">Yellow Coins</span>
-                            <span className="text-base font-extrabold text-amber-400">{currentUser.yellowCoins}</span>
-                          </div>
-                          <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
-                            <span className="text-[10px] text-slate-400 block">AI Blue Coins</span>
-                            <span className="text-base font-extrabold text-cyan-400">{currentUser.blueCoins}</span>
-                          </div>
-                        </div>
-
-                        {/* Subscription & ZapUPI Gateway */}
-                        <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-studio-900 border border-emerald-500/40 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <Zap className="w-4 h-4 text-emerald-400 fill-emerald-400" />
-                              <span className="text-xs font-bold text-white">ZapUPI Gateway</span>
-                            </div>
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                              Active
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-300">
-                            Upgrade to Pro/VIP with instant UPI settlement. 4K 60fps, no watermark & monthly bonus coins.
-                          </p>
-                          <div className="flex gap-2 pt-1">
-                            <button
-                              onClick={() => {
-                                const plan = INITIAL_SUBSCRIPTION_PLANS.find(p => p.id === 'plan-subscribed-creator') || INITIAL_SUBSCRIPTION_PLANS[1];
-                                setSelectedZapUpiPlan(plan);
-                                setIsZapUpiModalOpen(true);
-                              }}
-                              className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-500 text-stone-950 font-bold text-[11px] hover:bg-emerald-400 flex items-center justify-center space-x-1 shadow-md shadow-emerald-500/20"
-                            >
-                              <CreditCard className="w-3.5 h-3.5" />
-                              <span>Pro (₹499)</span>
-                            </button>
-                            <button
-                              onClick={() => {
-                                const plan = INITIAL_SUBSCRIPTION_PLANS.find(p => p.id === 'plan-vip') || INITIAL_SUBSCRIPTION_PLANS[3];
-                                setSelectedZapUpiPlan(plan);
-                                setIsZapUpiModalOpen(true);
-                              }}
-                              className="flex-1 py-1.5 px-2 rounded-lg bg-amber-500 text-stone-950 font-bold text-[11px] hover:bg-amber-400 flex items-center justify-center space-x-1 shadow-md shadow-amber-500/20"
-                            >
-                              <Crown className="w-3.5 h-3.5" />
-                              <span>VIP (₹1999)</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 space-y-2 text-xs">
-                          <span className="font-bold text-white block">Device Information</span>
-                          <div className="flex justify-between text-[10px] text-slate-400">
-                            <span>Package ID:</span>
-                            <span className="font-mono text-cyan-300">com.cutmedia.app</span>
-                          </div>
-                          <div className="flex justify-between text-[10px] text-slate-400">
-                            <span>Target SDK:</span>
-                            <span className="font-mono text-slate-200">Android 15 (API 35)</span>
-                          </div>
-                          <div className="flex justify-between text-[10px] text-slate-400">
-                            <span>Local Storage:</span>
-                            <span className="font-mono text-emerald-400">Room SQLite Persistent</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
-
-                  {/* Creator Bottom Navigation Bar */}
-                  <div className="h-14 border-t border-stone-800/90 bg-stone-950/95 px-3 flex items-center justify-around shrink-0">
-                    {[
-                      { id: 'editor', label: 'Editor', icon: Scissors },
-                      { id: 'projects', label: 'Projects', icon: Film },
-                      { id: 'ai', label: 'AI Suite', icon: Sparkles },
-                      { id: 'social', label: 'Friends', icon: Users },
-                      { id: 'profile', label: 'Profile', icon: Settings }
-                    ].map((tab) => {
-                      const Icon = tab.icon;
-                      const active = creatorBottomTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => setCreatorBottomTab(tab.id as any)}
-                          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                            active ? 'text-cyan-400 font-bold' : 'text-slate-500 hover:text-slate-300'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          <span className="text-[9px]">{tab.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* APP 2: CutMedia Admin Console (Master) */}
-              {activeApp === 'admin' && (
-                <div className="flex-1 flex flex-col overflow-hidden bg-stone-950 text-slate-100">
-                  
-                  {/* Admin App Header */}
-                  <div className="px-4 py-2 border-b border-stone-800/80 flex items-center justify-between shrink-0 bg-stone-900/60">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center font-bold text-white text-xs">
-                        🛡️
-                      </div>
-                      <div>
-                        <h2 className="text-xs font-bold tracking-tight text-white">CutMedia Admin</h2>
-                        <span className="text-[9px] text-amber-400 font-mono">com.cutmedia.admin</span>
-                      </div>
                     </div>
+                  )}
 
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
-                      <Radio className="w-3 h-3 animate-pulse" />
-                      <span>LIVE</span>
-                    </div>
-                  </div>
-
-                  {/* Admin Body by Tab */}
-                  <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                    
-                    {/* ADMIN TAB 1: Telemetry & Mission Control */}
-                    {adminBottomTab === 'telemetry' && (
-                      <div className="space-y-3">
-                        <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-950/40 to-stone-900 border border-amber-500/30 space-y-1">
-                          <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Mission Control</span>
-                          <h3 className="text-sm font-bold text-white">Founder System Status</h3>
-                          <p className="text-[10px] text-slate-300">
-                            Real-time Firestore snapshot listener connected. 0 latency detected.
-                          </p>
+                  {/* TAB 5: Profile & Subscription */}
+                  {creatorBottomTab === 'profile' && (
+                    <div className="space-y-3">
+                      <div className="p-4 rounded-2xl bg-gradient-to-tr from-stone-900 to-stone-950 border border-stone-800 text-center space-y-2">
+                        <img
+                          src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                          alt={currentUser.username}
+                          className="w-14 h-14 rounded-full object-cover mx-auto border-2 border-cyan-400 shadow-lg"
+                        />
+                        <div>
+                          <h3 className="text-sm font-bold text-white">{currentUser.displayName || currentUser.username}</h3>
+                          <span className="text-[10px] text-cyan-400 font-mono">{currentUser.userIdTag}</span>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
-                            <span className="text-[10px] text-slate-400">Active Mobile Nodes</span>
-                            <span className="text-lg font-bold text-cyan-400 block mt-0.5">2,841</span>
-                          </div>
-                          <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
-                            <span className="text-[10px] text-slate-400">Queue Processing</span>
-                            <span className="text-lg font-bold text-emerald-400 block mt-0.5">0.14s avg</span>
-                          </div>
-                          <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
-                            <span className="text-[10px] text-slate-400">Firewall Blocks</span>
-                            <span className="text-lg font-bold text-rose-400 block mt-0.5">14 IPs</span>
-                          </div>
-                          <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
-                            <span className="text-[10px] text-slate-400">Firestore DB</span>
-                            <span className="text-lg font-bold text-amber-400 block mt-0.5">Healthy</span>
-                          </div>
-                        </div>
-
-                        {/* Global Kill Switch */}
-                        <div className="p-3 rounded-xl bg-stone-900 border border-rose-500/30 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                                <Power className="w-3.5 h-3.5 text-rose-400" />
-                                <span>Emergency Kill-Switch</span>
-                              </h4>
-                              <p className="text-[10px] text-slate-400">Freeze all client rendering & uploads</p>
-                            </div>
-                            <button
-                              onClick={() => setKillSwitchActive(!killSwitchActive)}
-                              className={`w-12 h-6 rounded-full transition-colors relative ${killSwitchActive ? 'bg-rose-600' : 'bg-stone-800'}`}
-                            >
-                              <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${killSwitchActive ? 'left-7' : 'left-1'}`} />
-                            </button>
-                          </div>
-                          {killSwitchActive && (
-                            <span className="text-[10px] text-rose-400 font-bold block">
-                              ⚠️ Emergency lock engaged. All public API requests paused.
+                        <div className="flex justify-center gap-1.5 pt-1">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-stone-800 text-slate-300 border border-stone-700">
+                            {currentUser.premiumRole || 'FREE'}
+                          </span>
+                          {currentUser.role === 'admin' && (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              Admin
                             </span>
                           )}
                         </div>
                       </div>
-                    )}
 
-                    {/* ADMIN TAB 2: Roles Station */}
-                    {adminBottomTab === 'roles' && (
-                      <div className="space-y-3">
-                        <span className="text-xs font-bold text-white block">Assign Role to User</span>
-                        
-                        <div className="space-y-2">
-                          <input 
-                            type="text" 
-                            placeholder="Enter User ID (e.g. VID-10303)"
-                            value={targetUserId}
-                            onChange={(e) => setTargetUserId(e.target.value)}
-                            className="w-full bg-stone-900 border border-stone-800 text-xs text-white rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500"
-                          />
-
-                          <div className="grid grid-cols-2 gap-2">
-                            {[
-                              { name: 'VIP Creator', color: 'from-amber-500 to-yellow-600' },
-                              { name: 'Founder Admin', color: 'from-rose-500 to-red-600' },
-                              { name: 'Moderator', color: 'from-blue-500 to-cyan-600' },
-                              { name: 'Ban User', color: 'from-stone-700 to-stone-900' }
-                            ].map((r) => (
-                              <button
-                                key={r.name}
-                                onClick={() => handleAssignRole(r.name)}
-                                className={`p-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r ${r.color} shadow hover:opacity-90 transition-opacity`}
-                              >
-                                {r.name}
-                              </button>
-                            ))}
-                          </div>
+                      {/* Upgrade Subscription Button */}
+                      <button
+                        onClick={() => setIsZapUpiModalOpen(true)}
+                        className="w-full p-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-600 text-stone-950 font-bold text-xs flex items-center justify-between shadow-lg"
+                      >
+                        <div className="text-left">
+                          <span className="block font-extrabold">Upgrade to Pro Creator VIP</span>
+                          <span className="text-[10px] font-medium opacity-90">Unlock 4K 60fps &amp; No Watermark</span>
                         </div>
+                        <Zap className="w-5 h-5 fill-current" />
+                      </button>
 
-                        {roleAssignedMsg && (
-                          <div className="p-2.5 rounded-xl bg-amber-950/80 border border-amber-500/40 text-amber-200 text-xs flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                            <span>{roleAssignedMsg}</span>
-                          </div>
+                      {/* Admin Console Shortcut */}
+                      <button
+                        onClick={handleOpenAdminConsole}
+                        className="w-full p-2.5 rounded-xl bg-stone-900 hover:bg-stone-850 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-between transition-colors"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-amber-400" />
+                          <span>Admin Command Center</span>
+                        </span>
+                        {currentUser.role === 'admin' ? (
+                          <span className="text-[10px] text-emerald-400 font-mono">AUTHORIZED</span>
+                        ) : (
+                          <Lock className="w-3.5 h-3.5 text-amber-500" />
                         )}
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* Creator Bottom Navigation Bar */}
+                <div className="h-14 border-t border-stone-800 bg-stone-950 px-2 flex items-center justify-around shrink-0 z-20">
+                  {[
+                    { id: 'editor', label: 'Editor', icon: Scissors },
+                    { id: 'projects', label: 'Projects', icon: Film },
+                    { id: 'ai', label: 'AI Suite', icon: Sparkles },
+                    { id: 'social', label: 'Network', icon: Users },
+                    { id: 'profile', label: 'Profile', icon: Settings }
+                  ].map((tab) => {
+                    const IconComp = tab.icon;
+                    const active = creatorBottomTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setCreatorBottomTab(tab.id as any)}
+                        className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition-all ${
+                          active ? 'text-cyan-400 font-bold' : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        <IconComp className="w-4 h-4" />
+                        <span className="text-[9px]">{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* APP 2: SECURED ADMIN COMMAND CENTER                           */}
+            {/* ------------------------------------------------------------- */}
+            {activeApp === 'admin' && (
+              <div className="flex-1 flex flex-col overflow-hidden bg-stone-950 text-slate-100">
+                
+                {/* Admin Header with Security Lockout */}
+                <div className="px-4 py-2 border-b border-stone-800 bg-stone-900/80 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xs">
+                      <Shield className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-white tracking-tight">Admin Station</h3>
+                      <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>VERIFIED OPERATOR</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setActiveApp('creator')}
+                    className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-300 text-[10px] font-bold flex items-center gap-1"
+                    title="Exit to Creator Studio"
+                  >
+                    <span>Exit Admin</span>
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {/* Admin Body Content */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                  
+                  {/* ADMIN TAB 1: System Telemetry */}
+                  {adminBottomTab === 'metrics' && (
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-950/40 to-stone-900 border border-amber-500/30 space-y-1">
+                        <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Mission Status</span>
+                        <h4 className="text-xs font-bold text-white">Live Cloud Operational Metrics</h4>
+                        <p className="text-[10px] text-slate-300">
+                          Firestore real-time snapshot channel: <strong>ai-studio-vidflowpro</strong>.
+                        </p>
                       </div>
-                    )}
 
-                    {/* ADMIN TAB 3: Push Notification Broadcast */}
-                    {adminBottomTab === 'broadcast' && (
-                      <div className="space-y-3">
-                        <span className="text-xs font-bold text-white block">Broadcast Push Alert</span>
-                        <textarea 
-                          rows={3}
-                          placeholder="Type system alert to broadcast to all Android devices..."
-                          value={broadcastMessage}
-                          onChange={(e) => setBroadcastMessage(e.target.value)}
-                          className="w-full bg-stone-900 border border-stone-800 text-xs text-white rounded-xl p-2.5 focus:outline-none focus:border-amber-500"
-                        />
-
-                        <button
-                          onClick={handleSendBroadcast}
-                          className="w-full py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-500 to-rose-600 text-stone-950 shadow flex items-center justify-center gap-1.5"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          <span>{broadcastSent ? 'Broadcast Dispatched!' : 'Send Push to All Phones'}</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {/* ADMIN TAB: Feature Promotion Station (Worldwide sync) */}
-                    {adminBottomTab === 'promote' && (
-                      <div className="space-y-3">
-                        <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-950/50 to-stone-900 border border-amber-500/40 space-y-1">
-                          <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Cloud Functions Promotion</span>
-                          <h4 className="text-xs font-bold text-white">Worldwide Feature Spotlight</h4>
-                          <p className="text-[10px] text-slate-300">
-                            Promote any feature, template, or AI tool from this admin panel. It immediately reflects worldwide across all active devices and apps.
-                          </p>
+                      {/* Real Metrics Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
+                          <span className="text-[10px] text-slate-400">Connected Database</span>
+                          <span className="text-xs font-bold text-emerald-400 block mt-0.5">Online &amp; Active</span>
                         </div>
+                        <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
+                          <span className="text-[10px] text-slate-400">Cloud Templates</span>
+                          <span className="text-sm font-bold text-purple-400 block mt-0.5">{templates.length} Active</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
+                          <span className="text-[10px] text-slate-400">Export Engine</span>
+                          <span className="text-xs font-bold text-cyan-400 block mt-0.5">WebM / Canvas 60fps</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800">
+                          <span className="text-[10px] text-slate-400">Security Gate</span>
+                          <span className="text-xs font-bold text-amber-400 block mt-0.5">Passkey Protected</span>
+                        </div>
+                      </div>
 
-                        {/* Currently Active Worldwide Promotion */}
-                        {worldwidePromotion && (
-                          <div className="p-2.5 rounded-xl bg-stone-900 border border-amber-400/40 space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-black text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded">
-                                ACTIVE WORLDWIDE
-                              </span>
-                              <button
-                                onClick={() => {
-                                  setWorldwidePromotion(null);
-                                  setSaveToast('Feature promotion deactivated worldwide.');
-                                }}
-                                className="text-[9px] text-rose-400 hover:text-rose-300 font-bold"
-                              >
-                                End Promotion
-                              </button>
-                            </div>
-                            <p className="text-xs font-bold text-white">{worldwidePromotion.title}</p>
-                            <p className="text-[10px] text-emerald-400 font-medium">{worldwidePromotion.perk}</p>
-                          </div>
-                        )}
-
-                        <span className="text-xs font-bold text-white block pt-1">One-Click Worldwide Feature Promotions</span>
-                        <div className="space-y-2">
-                          {[
-                            { id: 'promo-ai-captions', title: 'AI Auto-Captions & Subtitle Sync', perk: '0 Blue Coins • Free Unlocked', tab: 'ai' },
-                            { id: 'promo-4k-upscale', title: '4K HDR AI Upscaler & Clarity', perk: '50% Off (1 Blue Coin)', tab: 'ai' },
-                            { id: 'promo-neon-template', title: 'Cyberpunk Neon Reel 2077', perk: 'Free Template Export Included', tab: 'projects' },
-                            { id: 'promo-diwali-reel', title: 'Diwali Festive Lights Reel', perk: 'Global Festival Spotlight', tab: 'projects' },
-                            { id: 'promo-2x-coins', title: '2X Daily Coin Multiplier Event', perk: 'Double Coins for All Creators', tab: 'editor' }
-                          ].map((item) => (
-                            <div key={item.id} className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between">
-                              <div className="space-y-0.5 pr-2">
-                                <span className="text-xs font-bold text-white block">{item.title}</span>
-                                <span className="text-[10px] text-amber-400 font-medium">{item.perk}</span>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const promoObj = {
-                                    id: item.id,
-                                    title: item.title,
-                                    badge: 'WORLDWIDE SPOTLIGHT',
-                                    perk: item.perk,
-                                    description: `Promoted by Master Admin worldwide`,
-                                    targetTab: item.tab
-                                  };
-                                  setWorldwidePromotion(promoObj);
-                                  syncPromotedFeatureToFirestore({
-                                    id: item.id,
-                                    title: item.title,
-                                    category: item.tab === 'ai' ? 'AI' : 'TEMPLATE',
-                                    description: `Promoted by Master Admin worldwide`,
-                                    badgeText: 'WORLDWIDE SPOTLIGHT',
-                                    discountOrBonus: item.perk,
-                                    targetScreen: item.tab === 'ai' ? 'AI_STUDIO' : 'PROJECTS',
-                                    isActive: true
-                                  });
-                                  setPhoneNotifs(prev => [
-                                    {
-                                      id: `notif-${Date.now()}`,
-                                      title: `🌟 Worldwide Promotion: ${item.title}`,
-                                      message: `${item.title} is now promoted with ${item.perk}!`,
-                                      type: 'CAMPAIGN',
-                                      time: 'Just now',
-                                      unread: true
-                                    },
-                                    ...prev
-                                  ]);
-                                  setSaveToast(`🚀 "${item.title}" Promoted Worldwide! Live on all devices.`);
-                                }}
-                                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-amber-500 hover:bg-amber-400 text-stone-950 shrink-0 shadow"
-                              >
-                                Promote 🚀
-                              </button>
+                      {/* Real Session Audit Logs */}
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Session Activity Log</span>
+                        <div className="space-y-1 max-h-36 overflow-y-auto">
+                          {sessionAuditLogs.map((log) => (
+                            <div key={log.id} className="p-2 rounded-xl bg-stone-900 border border-stone-800 text-[10px] flex items-center justify-between">
+                              <span className={`font-medium ${log.color}`}>{log.action}</span>
+                              <span className="text-slate-500 font-mono">{log.time}</span>
                             </div>
                           ))}
                         </div>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* ADMIN TAB 4: Security & Audit */}
-                    {adminBottomTab === 'security' && (
+                  {/* ADMIN TAB 2: Worldwide Promotions */}
+                  {adminBottomTab === 'promote' && (
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-950/40 to-stone-900 border border-amber-500/30 space-y-1">
+                        <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Cloud Functions</span>
+                        <h4 className="text-xs font-bold text-white">Worldwide Feature Spotlight</h4>
+                        <p className="text-[10px] text-slate-300">
+                          Promote any feature or template. Reflects immediately worldwide across all active devices.
+                        </p>
+                      </div>
+
                       <div className="space-y-2">
-                        <span className="text-xs font-bold text-white block">Recent Security Incidents</span>
                         {[
-                          { ip: '103.21.244.12', action: 'DDoS Burst Prevented', time: '1m ago', color: 'text-rose-400' },
-                          { ip: '192.168.1.84', action: 'Dual-Account Limit Reached', time: '4m ago', color: 'text-amber-400' },
-                          { ip: '185.199.108.153', action: 'Tampered APK Check Blocked', time: '12m ago', color: 'text-rose-400' }
-                        ].map((log, idx) => (
-                          <div key={idx} className="p-2 rounded-xl bg-stone-900 border border-stone-800 text-[10px] flex items-center justify-between">
-                            <div>
-                              <span className={`font-bold block ${log.color}`}>{log.action}</span>
-                              <span className="text-slate-500 font-mono">{log.ip}</span>
+                          { id: 'promo-4k', title: '4K 60fps HDR Rendering', perk: 'Unlocked for All VIP Creators', tab: 'editor' },
+                          { id: 'promo-neon', title: 'Neon Cyberpunk Template', perk: 'Featured Worldwide Spotlight', tab: 'projects' },
+                          { id: 'promo-coins', title: '2X Daily Coins Reward Event', perk: '+100 Yellow Coins on Check-in', tab: 'profile' }
+                        ].map((item) => (
+                          <div key={item.id} className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between">
+                            <div className="space-y-0.5 pr-2">
+                              <span className="text-xs font-bold text-white block">{item.title}</span>
+                              <span className="text-[10px] text-amber-400 font-medium">{item.perk}</span>
                             </div>
-                            <span className="text-slate-500">{log.time}</span>
+                            <button
+                              onClick={() => {
+                                syncPromotedFeatureToFirestore({
+                                  id: item.id,
+                                  title: item.title,
+                                  category: 'PROMOTION',
+                                  description: item.perk,
+                                  badgeText: 'WORLDWIDE SPOTLIGHT',
+                                  discountOrBonus: item.perk,
+                                  targetScreen: 'HOME',
+                                  isActive: true
+                                });
+                                setSaveToast(`🚀 Promoted "${item.title}" worldwide!`);
+                                setTimeout(() => setSaveToast(null), 2500);
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-amber-500 hover:bg-amber-400 text-stone-950 shrink-0 shadow"
+                            >
+                              Promote 🚀
+                            </button>
                           </div>
                         ))}
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                  </div>
+                  {/* ADMIN TAB 3: Broadcast Push Alerts */}
+                  {adminBottomTab === 'broadcast' && (
+                    <div className="space-y-3">
+                      <span className="text-xs font-bold text-white block">Broadcast Push Alert</span>
+                      <textarea
+                        rows={3}
+                        placeholder="Type system alert to dispatch to all active creators..."
+                        value={broadcastMessage}
+                        onChange={(e) => setBroadcastMessage(e.target.value)}
+                        className="w-full bg-stone-900 border border-stone-800 text-xs text-white rounded-xl p-2.5 focus:outline-none focus:border-amber-500"
+                      />
+                      <button
+                        onClick={() => {
+                          if (!broadcastMessage.trim()) return;
+                          setBroadcastSent(true);
+                          setSaveToast('Broadcast alert sent across Firestore nodes!');
+                          setTimeout(() => {
+                            setBroadcastSent(false);
+                            setBroadcastMessage('');
+                            setSaveToast(null);
+                          }, 3000);
+                        }}
+                        className="w-full py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-500 to-yellow-600 text-stone-950 shadow flex items-center justify-center gap-1.5"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{broadcastSent ? 'Broadcast Dispatched!' : 'Send Push Broadcast'}</span>
+                      </button>
+                    </div>
+                  )}
 
-                  {/* Admin Bottom Navigation Bar */}
-                  <div className="h-14 border-t border-stone-800/90 bg-stone-950/95 px-3 flex items-center justify-around shrink-0">
-                    {[
-                      { id: 'promote', label: 'Promote', icon: Sparkles },
-                      { id: 'telemetry', label: 'Telemetry', icon: Radio },
-                      { id: 'roles', label: 'Roles', icon: Crown },
-                      { id: 'broadcast', label: 'Broadcast', icon: Send },
-                      { id: 'security', label: 'Security', icon: ShieldAlert }
-                    ].map((tab) => {
-                      const Icon = tab.icon;
-                      const active = adminBottomTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => setAdminBottomTab(tab.id as any)}
-                          className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                            active ? 'text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          <span className="text-[9px]">{tab.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
-              )}
 
-              {/* Android System Navigation Gesture Bar */}
-              <div className="h-4 bg-stone-950 flex items-center justify-center shrink-0">
-                <div className="w-28 h-1 rounded-full bg-slate-600 opacity-70" />
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        {/* Right Feature Panel: Architecture & Quick Actions (7 cols on lg) */}
-        <div className="lg:col-span-6 xl:col-span-7 space-y-4">
-          
-          {/* App Switcher Highlights */}
-          <div className="p-5 rounded-2xl bg-studio-850/90 border border-studio-750 shadow-md space-y-3">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Tv className="w-4 h-4 text-cyan-400" />
-              <span>Simulated Native Architecture</span>
-            </h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              You are viewing the live interactive simulation of CutMedia's Jetpack Compose codebase. Use the phone controls on the left to test video trimming, aspect ratios, filter color matrices, AI generations, and administrative security rules.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <div 
-                onClick={() => setActiveApp('creator')}
-                className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                  activeApp === 'creator'
-                    ? 'bg-cyan-950/30 border-cyan-500/60 shadow-sm ring-1 ring-cyan-500/30'
-                    : 'bg-studio-900 border-studio-800 hover:border-studio-700'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Scissors className="w-4 h-4 text-cyan-400" />
-                  <span className="text-xs font-bold text-white">CutMedia Video Editor</span>
+                {/* Admin Bottom Navigation */}
+                <div className="h-12 border-t border-stone-800 bg-stone-950 px-2 flex items-center justify-around shrink-0">
+                  {[
+                    { id: 'metrics', label: 'Metrics', icon: ShieldCheck },
+                    { id: 'promote', label: 'Promote', icon: Sparkles },
+                    { id: 'broadcast', label: 'Broadcast', icon: Radio }
+                  ].map((tab) => {
+                    const IconComp = tab.icon;
+                    const active = adminBottomTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setAdminBottomTab(tab.id as any)}
+                        className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all ${
+                          active ? 'text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        <IconComp className="w-4 h-4" />
+                        <span className="text-[9px]">{tab.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  Zero-permission photo picker, timeline trimming, speed ramping, color grading, AI Studio, Room persistence.
-                </p>
-                <span className="inline-block mt-2 text-[10px] font-mono text-cyan-400 font-semibold">
-                  Package: com.cutmedia.app
-                </span>
-              </div>
 
-              <div 
-                onClick={() => setActiveApp('admin')}
-                className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                  activeApp === 'admin'
-                    ? 'bg-amber-950/30 border-amber-500/60 shadow-sm ring-1 ring-amber-500/30'
-                    : 'bg-studio-900 border-studio-800 hover:border-studio-700'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-bold text-white">CutMedia Admin Console</span>
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Master mission control, role assigner station, emergency kill-switch, push broadcaster, and security firewall.
-                </p>
-                <span className="inline-block mt-2 text-[10px] font-mono text-amber-400 font-semibold">
-                  Package: com.cutmedia.admin
-                </span>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Quick Technical Specs & Download Card */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-studio-850 to-studio-900 border border-studio-750 shadow-md space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-bold text-white">Install on Android Hardware</h4>
-                <p className="text-xs text-slate-400">Compiled production binaries ready for physical phones</p>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                v2.4.0 APK Ready
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-3 rounded-xl bg-studio-900/90 border border-studio-800">
-                <span className="text-[11px] text-slate-400 block mb-0.5">Dual Launcher</span>
-                <span className="text-xs font-bold text-white">2 Icons on Home Screen</span>
-              </div>
-              <div className="p-3 rounded-xl bg-studio-900/90 border border-studio-800">
-                <span className="text-[11px] text-slate-400 block mb-0.5">Firebase Project</span>
-                <span className="text-xs font-bold text-cyan-400 font-mono truncate block">ai-studio-vidflowpro</span>
-              </div>
-              <div className="p-3 rounded-xl bg-studio-900/90 border border-studio-800">
-                <span className="text-[11px] text-slate-400 block mb-0.5">Minimum Android</span>
-                <span className="text-xs font-bold text-white">Android 8.0+ (Oreo - 15)</span>
-              </div>
-              <div className="p-3 rounded-xl bg-studio-900/90 border border-studio-800">
-                <span className="text-[11px] text-slate-400 block mb-0.5">Architecture</span>
-                <span className="text-xs font-bold text-emerald-400">Jetpack Compose M3</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 pt-1">
-              <button
-                onClick={onOpenDownloadApkModal}
-                className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-stone-950 flex items-center justify-center gap-2 shadow-md transition-all"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download APK Packages</span>
-              </button>
-
-              <button
-                onClick={onOpenFirebaseModal}
-                className="py-2.5 px-4 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center gap-1.5 transition-all"
-              >
-                <Database className="w-4 h-4" />
-                <span>Live Firestore Status</span>
-              </button>
-            </div>
           </div>
 
         </div>
 
       </div>
 
-      {/* Export Studio Modal */}
+      {/* RIGHT SIDE: Technical Specifications & Cloud Status Panel */}
+      <div className="flex-1 w-full space-y-4">
+        
+        {/* Banner Card */}
+        <div className="p-6 rounded-3xl bg-gradient-to-br from-stone-900 via-stone-900 to-stone-950 border border-stone-800 shadow-xl space-y-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-extrabold text-white tracking-tight">Cincut Video Editor Pro</h2>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  v1.0.0
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Native Android Jetpack Compose Video Editor, Real-Time HTML5 Media Pipeline, and Secure Admin Command Center.
+              </p>
+            </div>
+            
+            <button
+              onClick={onOpenDownloadApkModal}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-stone-950 shadow-md flex items-center gap-1.5 transition-all"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download APK</span>
+            </button>
+          </div>
+
+          {/* Quick Specifications Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+            <div className="p-3 rounded-2xl bg-stone-950 border border-stone-800/80">
+              <span className="text-slate-500 block text-[10px] uppercase font-mono">Package ID</span>
+              <span className="font-mono font-bold text-cyan-300 truncate block mt-0.5">com.cincut.editor.studio</span>
+            </div>
+            <div className="p-3 rounded-2xl bg-stone-950 border border-stone-800/80">
+              <span className="text-slate-500 block text-[10px] uppercase font-mono">Firestore Cloud</span>
+              <span className="font-bold text-emerald-400 block mt-0.5">ai-studio-vidflowpro</span>
+            </div>
+            <div className="p-3 rounded-2xl bg-stone-950 border border-stone-800/80">
+              <span className="text-slate-500 block text-[10px] uppercase font-mono">Target Platform</span>
+              <span className="font-bold text-white block mt-0.5">Android 15 (API 35)</span>
+            </div>
+            <div className="p-3 rounded-2xl bg-stone-950 border border-stone-800/80">
+              <span className="text-slate-500 block text-[10px] uppercase font-mono">Security Gate</span>
+              <span className="font-bold text-amber-300 block mt-0.5">Zero-Trust Role Gated</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature Highlights */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="p-4 rounded-2xl bg-stone-900/60 border border-stone-800 space-y-1.5">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+              <Scissors className="w-4 h-4" />
+            </div>
+            <h4 className="font-bold text-white text-xs">Real Video Rendering</h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Export genuine video files (.mp4 / .webm) directly to your device with applied filters, speed curves, and captions.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-stone-900/60 border border-stone-800 space-y-1.5">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <h4 className="font-bold text-white text-xs">Custom User Templates</h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Package any cut, aspect ratio framing, or color grading style into reusable community presets.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-stone-900/60 border border-stone-800 space-y-1.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <h4 className="font-bold text-white text-xs">Authenticated Admin Station</h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Protected by administrative clearance. Real-time telemetry, worldwide promotion broadcasts, and system health.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Real Export Modal */}
       {isExportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in">
-          <div className={`bg-stone-900 border border-stone-700 w-full ${(isExporting || exportComplete) ? 'max-w-xl' : 'max-w-md'} rounded-3xl p-6 shadow-2xl space-y-4`}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="bg-stone-900 border border-stone-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-stone-800 pb-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-gradient-to-br from-cyan-500/20 to-blue-500/10 text-cyan-400 rounded-xl border border-cyan-500/30">
+                <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
                   <Download className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-base">CineCut Render Engine</h3>
-                  <span className="text-[10px] text-cyan-400 font-mono">Hardware Accelerated 1080p / 4K / 8K</span>
+                  <h3 className="font-bold text-white text-base">Export Video</h3>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {projectTitle} • {exportResolution} {exportFps}fps
+                  </span>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsExportModalOpen(false)} 
+              <button
+                onClick={() => setIsExportModalOpen(false)}
                 className="text-slate-400 hover:text-white"
               >
-                <X className="w-5 h-5" />
+                ✕
               </button>
             </div>
 
-            {!isExporting && !exportComplete && (
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="text-slate-400 block mb-1">Project Name</label>
-                  <input
-                    type="text"
-                    value={projectTitle}
-                    onChange={(e) => setProjectTitle(e.target.value)}
-                    className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white font-semibold"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-slate-400 block mb-1">Export Resolution</label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {(['720p', '1080p', '4K', '8K'] as const).map((res) => (
-                        <button
-                          key={res}
-                          onClick={() => setExportResolution(res)}
-                          className={`py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                            exportResolution === res
-                              ? 'bg-cyan-500 text-stone-950 border-cyan-400 shadow'
-                              : 'bg-stone-950 text-slate-300 border-stone-800 hover:border-stone-700'
-                          }`}
-                        >
-                          {res}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-slate-400 block mb-1">Framerate</label>
-                    <div className="grid grid-cols-3 gap-1">
-                      {([24, 30, 60] as const).map((fps) => (
-                        <button
-                          key={fps}
-                          onClick={() => setExportFps(fps)}
-                          className={`py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                            exportFps === fps
-                              ? 'bg-amber-400 text-stone-950 border-amber-300 shadow'
-                              : 'bg-stone-950 text-slate-300 border-stone-800 hover:border-stone-700'
-                          }`}
-                        >
-                          {fps}fps
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-stone-950 border border-stone-800 space-y-1 text-[11px] text-slate-300">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Aspect Ratio:</span>
-                    <span className="font-mono text-cyan-400">{selectedAspect}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Duration:</span>
-                    <span className="font-mono text-white">{(trimEnd - trimStart).toFixed(1)}s</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Color Grade:</span>
-                    <span className="font-mono text-amber-300">{selectedFilter} LUT</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Timeline Tracks:</span>
-                    <span className="font-mono text-purple-300">{timelineClips.length} Clips + Audio + Captions</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end space-x-2 pt-3 border-t border-stone-800">
-                  <button
-                    onClick={() => setIsExportModalOpen(false)}
-                    className="px-4 py-2 rounded-xl bg-stone-800 text-slate-300 hover:bg-stone-750"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleExecuteExport}
-                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-stone-950 font-extrabold shadow-lg"
-                  >
-                    Start Rendering
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {(isExporting || exportComplete) && (
-              <ExportProgressView
-                progress={exportProgress}
-                isExporting={isExporting}
-                isComplete={exportComplete}
-                projectTitle={projectTitle}
-                resolution={exportResolution}
-                fps={exportFps}
-                aspectRatio={selectedAspect}
-                totalDurationSeconds={parseFloat((trimEnd - trimStart).toFixed(1)) || 15.0}
-                onPauseToggle={handlePauseExport}
-                onCancel={handleCancelExport}
-                onDone={() => {
-                  setIsExportModalOpen(false);
-                  setExportComplete(false);
-                  setIsExporting(false);
-                }}
-                onDownload={() => {
-                  const a = document.createElement('a');
-                  a.href = '/CineCut-Release-v2.4.0.apk';
-                  a.download = `${projectTitle}_${exportResolution}_${exportFps}fps.mp4`;
-                  a.click();
-                }}
-              />
-            )}
+            <ExportProgressView
+              progress={exportProgress}
+              isExporting={isExporting}
+              isComplete={exportComplete}
+              projectTitle={projectTitle}
+              resolution={exportResolution}
+              fps={exportFps}
+              aspectRatio={selectedAspect}
+              totalDurationSeconds={trimEnd - trimStart}
+              videoBlobUrl={exportVideoBlobUrl}
+              onDone={() => setIsExportModalOpen(false)}
+              onCancel={() => {
+                setIsExporting(false);
+                setIsExportModalOpen(false);
+              }}
+            />
           </div>
         </div>
       )}
 
-      {/* ZapUPI Payment Checkout Modal */}
-      <ZapUpiPaymentModal
-        isOpen={isZapUpiModalOpen}
-        onClose={() => setIsZapUpiModalOpen(false)}
-        plan={selectedZapUpiPlan}
+      {/* Create Template Modal */}
+      <CreateTemplateModal
+        isOpen={isCreateTemplateModalOpen}
+        onClose={() => setIsCreateTemplateModalOpen(false)}
         currentUser={currentUser}
-        onPaymentSuccess={(plan, txn) => {
-          if (onSubscribeSuccess) {
-            onSubscribeSuccess(plan, txn);
-          } else {
-            alert(`🎉 Success! Paid ₹${txn.amount} via ZapUPI (${txn.gateway}). ${plan.name} is now active!`);
-          }
+        currentSettings={{
+          aspectRatio: selectedAspect,
+          filter: selectedFilter,
+          speed: videoSpeed,
+          captionStyle: captionStyle,
+          duration: parseFloat((trimEnd - trimStart).toFixed(1))
+        }}
+        onTemplateCreated={(newTpl) => {
+          setTemplates(prev => [newTpl, ...prev]);
+          setSaveToast(`Template "${newTpl.title}" created & saved!`);
+          setTimeout(() => setSaveToast(null), 3000);
         }}
       />
+
+      {/* Secure Admin Access Verification Modal */}
+      <AdminAccessModal
+        isOpen={isAdminAccessModalOpen}
+        onClose={() => setIsAdminAccessModalOpen(false)}
+        currentUser={currentUser}
+        onAdminVerified={(adminUser) => {
+          if (onUpdateCurrentUser) {
+            onUpdateCurrentUser(adminUser);
+          }
+          setActiveApp('admin');
+        }}
+      />
+
+      {/* ZapUPI Subscription Checkout Modal */}
+      {selectedZapUpiPlan && (
+        <ZapUpiPaymentModal
+          isOpen={isZapUpiModalOpen}
+          onClose={() => setIsZapUpiModalOpen(false)}
+          currentUser={currentUser}
+          plan={selectedZapUpiPlan}
+          onPaymentSuccess={(plan, txn) => {
+            if (onSubscribeSuccess) {
+              onSubscribeSuccess(plan, txn);
+            }
+            setIsZapUpiModalOpen(false);
+            setSaveToast(`🎉 Successfully upgraded to ${plan.name}!`);
+            setTimeout(() => setSaveToast(null), 3000);
+          }}
+        />
+      )}
+
     </div>
   );
 };

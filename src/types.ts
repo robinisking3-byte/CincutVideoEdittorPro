@@ -175,3 +175,29 @@ export interface GroupProject {
   activeTracksCount: number;
   aspectRatio: string;
 }
+
+export interface SavedExportedVideo {
+  id: string;
+  title: string;
+  videoUrl: string;
+  aspectRatio: string;
+  filter: string;
+  resolution: string;
+  duration: number;
+  createdAt: string;
+  thumbnailGradient?: string;
+  fileSizeBytes?: number;
+}
+
+export interface SavedProject {
+  id: string;
+  title: string;
+  aspectRatio: string;
+  filter: string;
+  duration: number;
+  updatedAt: string;
+  thumbnailGradient: string;
+  videoSrc?: string;
+  captionText?: string;
+}
+
