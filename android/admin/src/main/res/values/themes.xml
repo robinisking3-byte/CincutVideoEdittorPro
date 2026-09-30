@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.VidForge" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#FF07090E</item>
+        <item name="android:navigationBarColor">#FF07090E</item>
+    </style>
+</resources>

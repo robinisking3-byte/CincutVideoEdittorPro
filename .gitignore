@@ -1,0 +1,14 @@
+node_modules
+dist
+.vite
+.build-outputs
+.DS_Store
+*.log
+.gradle
+android/.gradle
+android/**/build
+android/local.properties
+.tools
+*.apk
+!public/*.apk
+!releases/*.apk

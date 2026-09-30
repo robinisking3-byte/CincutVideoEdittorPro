@@ -1,0 +1,96 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasAdminRole() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.admin == 'true'
+      ) && (
+        request.auth.token.role == 'super_admin' ||
+        request.auth.token.role == 'admin' ||
+        request.auth.token.role == 'moderator'
+      );
+    }
+
+    function isContentAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.admin == 'true'
+      ) && (
+        request.auth.token.role == 'super_admin' ||
+        request.auth.token.role == 'admin' ||
+        request.auth.token.role == 'content_admin'
+      );
+    }
+
+    // User Profile Photos
+    match /users/{userId}/avatar.jpg {
+      allow read: if true;
+      allow write: if isOwner(userId) &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Project Raw Media Assets
+    match /projects/{projectId}/media/{assetId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+        request.resource.size < 500 * 1024 * 1024 &&
+        request.resource.contentType.matches('(video|audio|image)/.*');
+    }
+
+    // Exported Final Videos
+    match /projects/{projectId}/exports/{exportId}.mp4 {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+        request.resource.size < 2048 * 1024 * 1024 &&
+        request.resource.contentType == 'video/mp4';
+    }
+
+    // Chat Attachments
+    match /chats/{chatId}/{fileId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+        request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // Support Ticket Attachments (Screenshots, logs, media, max 25MB, images/docs/txt)
+    match /supportTickets/{ticketId}/{fileId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+        request.resource.size < 25 * 1024 * 1024 &&
+        request.resource.contentType.matches('(image|application/pdf|text)/.*');
+    }
+
+    // Festival Banners & Decorative Assets (Public Read, Admin Write)
+    match /festivals/{festivalId}/{assetId} {
+      allow read: if true;
+      allow write: if hasAdminRole() && request.resource.size < 20 * 1024 * 1024;
+    }
+
+    match /festivalAssets/{assetId} {
+      allow read: if true;
+      allow write: if hasAdminRole() && request.resource.size < 20 * 1024 * 1024;
+    }
+
+    // Admin Content Catalog (M3U8 Videos, Livestream assets)
+    match /adminContent/{contentId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isContentAdmin() && request.resource.size < 500 * 1024 * 1024;
+    }
+
+    // Default deny for privileged and undefined paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

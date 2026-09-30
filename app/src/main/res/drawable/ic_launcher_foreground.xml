@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Film slate base -->
+    <path
+        android:fillColor="#FF5252"
+        android:pathData="M30,42 L78,42 C81.3,42 84,44.7 84,48 L84,76 C84,79.3 81.3,82 78,82 L30,82 C26.7,82 24,79.3 24,76 L24,48 C24,44.7 26.7,42 30,42 Z" />
+    <!-- Clapper top stick -->
+    <path
+        android:fillColor="#FF7D54"
+        android:pathData="M24,32 L84,26 L84,38 L24,44 Z" />
+    <!-- Clapper stripes -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,31.2 L40,30.4 L37.5,42.7 L29.5,43.5 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,29.6 L56,28.8 L53.5,41.1 L45.5,41.9 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M64,28.0 L72,27.2 L69.5,39.5 L61.5,40.3 Z" />
+    <!-- Play cut triangle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,53 L66,62 L48,71 Z" />
+    <!-- Glow spark -->
+    <path
+        android:fillColor="#FFD166"
+        android:pathData="M74,38 L76,43 L81,45 L76,47 L74,52 L72,47 L67,45 L72,43 Z" />
+</vector>

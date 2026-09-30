@@ -1,0 +1,6 @@
+{
+  "name": "Cinecut : Video editor",
+  "description": "Cinecut : Video editor — Professional Video Trimmer, AI Pipeline, and Founder Admin Console",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
