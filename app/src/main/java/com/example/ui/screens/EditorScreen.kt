@@ -26,6 +26,10 @@ import com.example.core.engine.TimelineController
 import com.example.core.model.*
 import com.example.ui.components.*
 import com.example.ui.theme.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -50,6 +54,16 @@ fun EditorScreen(
     val snappingEnabled by timelineController.snappingEnabled.collectAsState()
 
     val currentExportJob by exportEngine.currentJob.collectAsState()
+
+    // Real Android Zero-Permission Photo/Video Picker
+    val mediaPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val fileName = uri.lastPathSegment?.substringAfterLast("/") ?: "Clip_${System.currentTimeMillis() % 10000}.mp4"
+            timelineController.addClipToTrack(TrackType.VIDEO, fileName, durationMs = 5000L, mediaUri = uri.toString())
+        }
+    }
 
     var showSafeGuides by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
@@ -363,7 +377,9 @@ fun EditorScreen(
                                 icon = Icons.Default.AddPhotoAlternate,
                                 label = "Add Media",
                                 onClick = {
-                                    timelineController.addClipToTrack(TrackType.VIDEO, "Imported Clip.mp4")
+                                    mediaPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                                    )
                                 }
                             )
                         }

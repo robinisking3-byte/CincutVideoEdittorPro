@@ -331,20 +331,34 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
     }
   };
 
-  // Custom Video File Upload
+  // Custom Media File Upload (Video, Image, Audio)
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const objectUrl = URL.createObjectURL(file);
-      setActiveVideoSrc(objectUrl);
-      setActiveVideoTitle(file.name.replace(/\.[^/.]+$/, ''));
-      setProjectTitle(file.name.replace(/\.[^/.]+$/, '_cut'));
-      setCurrentTime(0);
-      setTrimStart(0);
-      setIsPlaying(false);
-      setSaveToast(`Imported "${file.name}" into CineCut timeline!`);
-      setTimeout(() => setSaveToast(null), 3000);
-    }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const objectUrl = URL.createObjectURL(file);
+    setActiveVideoSrc(objectUrl);
+    const cleanName = file.name.replace(/\.[^/.]+$/, '');
+    setActiveVideoTitle(cleanName);
+    setProjectTitle(`${cleanName.replace(/[^a-zA-Z0-9_-]/g, '_')}_cut`);
+    setCurrentTime(0);
+    setTrimStart(0);
+    setIsPlaying(false);
+
+    // Create a new timeline clip representing this imported media
+    const newClip = {
+      id: `c_${Date.now()}`,
+      title: cleanName,
+      start: 0,
+      end: 15.0,
+      color: 'from-emerald-600 to-teal-700'
+    };
+    setTimelineClips([newClip]);
+    setSelectedClipId(newClip.id);
+
+    setSaveToast(`Imported "${file.name}" into CineCut timeline!`);
+    setTimeout(() => setSaveToast(null), 3000);
   };
 
   // Split Clip At Playhead
@@ -543,6 +557,18 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
 
     setExportedGallery(prev => [newExport, ...prev]);
 
+    // Automatically trigger browser download of rendered video file
+    try {
+      const a = document.createElement('a');
+      a.href = videoUrl;
+      a.download = `${projectTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}_${exportResolution}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e) {
+      console.warn('Auto download note:', e);
+    }
+
     // Also add to session audit log
     setSessionAuditLogs(prev => [
       { id: `al-${Date.now()}`, action: `Exported video "${projectTitle}" (${exportResolution})`, time: 'Just now', color: 'text-cyan-400' },
@@ -717,6 +743,30 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
                             src={activeVideoSrc}
                             playsInline
                             crossOrigin="anonymous"
+                            onLoadedMetadata={(e) => {
+                              const dur = e.currentTarget.duration;
+                              if (dur && !isNaN(dur) && isFinite(dur)) {
+                                const safeDur = parseFloat(dur.toFixed(1));
+                                setTotalDuration(safeDur);
+                                setTrimEnd(safeDur);
+                                setTimelineClips(prev => {
+                                  if (prev.length <= 1) {
+                                    return [{ id: 'c1', title: activeVideoTitle, start: 0, end: safeDur, color: 'from-cyan-600 to-blue-700' }];
+                                  }
+                                  return prev;
+                                });
+                              }
+                            }}
+                            onTimeUpdate={(e) => {
+                              const t = e.currentTarget.currentTime;
+                              setCurrentTime(t);
+                              if (t >= trimEnd) {
+                                e.currentTarget.currentTime = trimStart;
+                                if (!isPlaying) {
+                                  e.currentTarget.pause();
+                                }
+                              }
+                            }}
                             className="w-full h-full object-cover transition-all"
                             style={{
                               filter: `brightness(${100 + exposureAdj}%) contrast(${contrastAdj}%) saturate(${saturationAdj}%) ${getFilterStyle()}`
@@ -756,32 +806,41 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
                       </div>
 
                       {/* Quick Actions Bar */}
-                      <div className="grid grid-cols-4 gap-1.5 bg-stone-900/90 p-1.5 rounded-xl border border-stone-800 text-[10px]">
+                      <div className="grid grid-cols-5 gap-1 bg-stone-900/90 p-1.5 rounded-xl border border-stone-800 text-[10px]">
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="py-1.5 px-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 font-bold flex items-center justify-center gap-0.5 transition-colors"
+                          title="Import custom video or photo from device"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>+ Media</span>
+                        </button>
+
                         <button
                           onClick={handleSplitClipAtPlayhead}
-                          className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-1 transition-colors"
+                          className="py-1.5 px-1 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-0.5 transition-colors"
                           title="Split clip at playhead"
                         >
-                          <Scissors className="w-3.5 h-3.5 text-cyan-400" />
+                          <Scissors className="w-3 h-3 text-cyan-400" />
                           <span>Split</span>
                         </button>
 
                         <button
                           onClick={handleToggleKeyframe}
-                          className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-1 transition-colors"
+                          className="py-1.5 px-1 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-0.5 transition-colors"
                           title="Add / Remove Keyframe"
                         >
-                          <Diamond className="w-3.5 h-3.5 text-amber-400" />
+                          <Diamond className="w-3 h-3 text-amber-400" />
                           <span>Keyframe</span>
                         </button>
 
                         <button
                           onClick={() => setIsCreateTemplateModalOpen(true)}
-                          className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-1 transition-colors"
+                          className="py-1.5 px-1 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-0.5 transition-colors"
                           title="Save as reusable Template"
                         >
-                          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                          <span>Template</span>
+                          <Sparkles className="w-3 h-3 text-purple-400" />
+                          <span>Preset</span>
                         </button>
 
                         <button
@@ -791,10 +850,10 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
                               setCurrentTime(0);
                             }
                           }}
-                          className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-1 transition-colors"
+                          className="py-1.5 px-1 rounded-lg bg-stone-800 hover:bg-stone-750 text-slate-200 font-bold flex items-center justify-center gap-0.5 transition-colors"
                           title="Rewind to start"
                         >
-                          <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                          <RotateCcw className="w-3 h-3 text-emerald-400" />
                           <span>Rewind</span>
                         </button>
                       </div>
@@ -996,9 +1055,17 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
                         )}
 
                         {activeEditorTool === 'clips' && (
-                          <div className="space-y-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sample Media Library</span>
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => fileInputRef.current?.click()}
+                              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-stone-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Import Custom Video / Photo</span>
+                            </button>
+
                             <div className="space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Sample Media Library</span>
                               {SAMPLE_VIDEOS.map((sv) => (
                                 <button
                                   key={sv.id}
