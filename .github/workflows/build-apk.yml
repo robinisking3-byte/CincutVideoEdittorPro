@@ -57,7 +57,9 @@ jobs:
 
           if [ -n "$APP_APK" ] && [ -f "$APP_APK" ]; then
             echo "Successfully found newly built APK at: $APP_APK"
+            cp "$APP_APK" build-output/CincutVideoEdittorPro-v1.0.2.apk
             cp "$APP_APK" build-output/CincutVideoEdittorPro-v1.0.1.apk
+            cp "$APP_APK" build-output/CincutVideoEdittorPro-latest.apk
           else
             echo "ERROR: No APK found after build step!"
             exit 1
@@ -69,7 +71,7 @@ jobs:
       - name: Upload APKs as GitHub Artifacts (Instant Download)
         uses: actions/upload-artifact@v4
         with:
-          name: CincutVideoEdittorPro-v1.0.1
+          name: CincutVideoEdittorPro-v1.0.2
           path: build-output/*.apk
           retention-days: 60
 
@@ -78,16 +80,20 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: v1.0.1-${{ github.run_number }}
-          name: "Cincut Video Editor Pro Release v1.0.1 (Build #${{ github.run_number }})"
+          tag_name: v1.0.2-${{ github.run_number }}
+          name: "Cincut Video Editor Pro Release v1.0.2 (Build #${{ github.run_number }})"
           body: |
-            ### 🎬 Cincut Video Editor Pro v1.0.1 Production Release
+            ### 🎬 Cincut Video Editor Pro v1.0.2 Production Release
 
-            Brand new standalone package ID (`com.cincut.pro.studio`) with isolated storage — installs cleanly without reading or conflicting with any older apps or cached sessions.
+            Brand new standalone package ID (`com.cincut.pro.studio`) with Version Code **3** — upgrades cleanly over any previous installation on Android devices.
 
-            - 📱 **Direct Download APK**: [**CincutVideoEdittorPro-v1.0.1.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.0.1-${{ github.run_number }}/CincutVideoEdittorPro-v1.0.1.apk)
+            - 📱 **Direct Download APK**: [**CincutVideoEdittorPro-v1.0.2.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.0.2-${{ github.run_number }}/CincutVideoEdittorPro-v1.0.2.apk)
 
-            #### What's in v1.0.1:
+            #### What's in v1.0.2:
+            - **Incremented Version Code 3**: Forces Android OS and device package managers to immediately upgrade from any older build.
+            - **Live ZapUPI Payment Gateway**: Official merchant integration with instant dynamic QR code and 12-digit UTR verification.
+            - **Real Video Editing & Media Import**: Zero-permission device gallery media picker + HTML5/Canvas frame-by-frame video export engine with instant downloads.
+            - **Friend Search & Social Suite**: Search creators by handle, add friends, and share project cuts.
             - **Fresh Package ID**: `com.cincut.pro.studio` (Version Code 2, Version Name 1.0.1)
             - **Completely Plain Login/Register Screen**: Removed all "Edit Firebase API Key" dialogs, status cards, and sensitive admin texts. Clean modern design with Google OAuth and Email options.
             - **Zero Old Package Conflict**: Installs cleanly on Android devices as a brand new app.

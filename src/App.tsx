@@ -67,7 +67,7 @@ export function App() {
             <div className="flex items-center gap-2">
               <h1 className="text-base font-extrabold text-white tracking-tight">Cincut Video Editor Pro</h1>
               <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                v1.0.0
+                v1.0.2
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block">
