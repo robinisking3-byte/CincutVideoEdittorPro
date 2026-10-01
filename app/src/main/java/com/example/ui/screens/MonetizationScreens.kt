@@ -137,48 +137,31 @@ fun MembershipScreen(
                                 Text("Current Active Plan", color = CineSuccess)
                             }
                         } else {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            val inrAmount = when (tier) {
+                                MembershipTier.FREE -> 0.0
+                                MembershipTier.BRONZE -> 99.0
+                                MembershipTier.SILVER -> 199.0
+                                MembershipTier.GOLD -> 399.0
+                                MembershipTier.DIAMOND -> 799.0
+                                MembershipTier.VIP -> 1499.0
+                                MembershipTier.FOUNDER -> 2999.0
+                                else -> 99.0
+                            }
+
+                            Button(
+                                onClick = {
+                                    repository.createZapUpiPaymentOrder(
+                                        itemType = "MEMBERSHIP",
+                                        itemId = "tier_${tier.name.lowercase()}",
+                                        amountInr = inrAmount,
+                                        title = "${tier.title} Membership"
+                                    )
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = CineSecondary),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Button(
-                                    onClick = {
-                                        repository.upgradeMembership(tier)
-                                        purchaseSuccessMessage = "Successfully upgraded to ${tier.title} via Google Play Billing!"
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = CinePrimary),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("Google Play", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-
-                                val inrAmount = when (tier) {
-                                    MembershipTier.FREE -> 0.0
-                                    MembershipTier.BRONZE -> 99.0
-                                    MembershipTier.SILVER -> 199.0
-                                    MembershipTier.GOLD -> 399.0
-                                    MembershipTier.DIAMOND -> 799.0
-                                    MembershipTier.VIP -> 1499.0
-                                    MembershipTier.FOUNDER -> 2999.0
-                                    else -> 99.0
-                                }
-
-                                Button(
-                                    onClick = {
-                                        repository.createZapUpiPaymentOrder(
-                                            itemType = "MEMBERSHIP",
-                                            itemId = "tier_${tier.name.lowercase()}",
-                                            amountInr = inrAmount,
-                                            title = "${tier.title} Membership"
-                                        )
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = CineSecondary),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("⚡ UPI ₹%.0f".format(inrAmount), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF332000))
-                                }
+                                Text("⚡ Pay with ZapUPI ₹%.0f".format(inrAmount), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF332000))
                             }
                         }
                     }
@@ -401,9 +384,9 @@ fun CineCoinsScreen(
                 }
             }
 
-            // Google Play Coin Packages
+            // ZapUPI Coin Packages
             item {
-                Text("BUY CINECOINS PACKAGES (GOOGLE PLAY BILLING)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CineTextTertiary)
+                Text("BUY CINECOINS PACKAGES (INSTANT ZAPUPI)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CineTextTertiary)
             }
 
             item {
@@ -412,10 +395,10 @@ fun CineCoinsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(
-                        Triple(500L, "$1.99", "Starter"),
-                        Triple(1500L, "$4.99", "Popular"),
-                        Triple(5000L, "$14.99", "Best Value")
-                    ).forEach { (coins, price, label) ->
+                        Triple(500L, 49.0, "Starter"),
+                        Triple(1500L, 129.0, "Popular"),
+                        Triple(5000L, 349.0, "Best Value")
+                    ).forEach { (coins, priceInr, label) ->
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -433,14 +416,18 @@ fun CineCoinsScreen(
                                 Text("${coins}¢", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = CineSecondary)
                                 Button(
                                     onClick = {
-                                        repository.executeCoinTransaction("PURCHASE", coins, "Google Play Purchase ($label Package)")
-                                        statusMessage = "Added +$coins CineCoins via Google Play Billing!"
+                                        repository.createZapUpiPaymentOrder(
+                                            itemType = "CINECOINS",
+                                            itemId = "coins_${coins}",
+                                            amountInr = priceInr,
+                                            title = "$coins CineCoins Pack"
+                                        )
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = CinePrimary),
+                                    colors = ButtonDefaults.buttonColors(containerColor = CineSecondary),
                                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                                     modifier = Modifier.height(28.dp)
                                 ) {
-                                    Text(price, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text("⚡ ₹%.0f".format(priceInr), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF332000))
                                 }
                             }
                         }

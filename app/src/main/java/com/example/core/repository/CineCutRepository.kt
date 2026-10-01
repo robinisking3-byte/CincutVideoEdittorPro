@@ -2587,7 +2587,10 @@ class CineCutRepository(context: Context? = null) {
             return Pair(true, "Order already verified and paid!")
         }
 
-        val cleanUtr = if (!utrNumber.isNullOrBlank()) utrNumber.trim() else "UPI" + System.currentTimeMillis().toString().takeLast(8)
+        val cleanUtr = utrNumber?.trim().orEmpty()
+        if (cleanUtr.length != 12 || !cleanUtr.all { it.isDigit() }) {
+            return Pair(false, "Invalid UTR. Please provide the exact 12-digit numeric UPI reference number from your payment receipt.")
+        }
 
         // Mark PAID
         val updatedOrder = order.copy(

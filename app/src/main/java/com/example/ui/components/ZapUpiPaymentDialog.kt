@@ -520,8 +520,8 @@ fun ZapUpiPaymentDialog(
 
                                     Button(
                                         onClick = {
-                                            if (utrInput.length < 8) {
-                                                utrError = "Please enter a valid 12-digit UPI UTR number"
+                                            if (utrInput.length != 12 || !utrInput.all { it.isDigit() }) {
+                                                utrError = "Bank UPI Reference numbers must be exactly 12 numeric digits (e.g. 428901234567)"
                                             } else {
                                                 onSubmitUtr(order.orderId, utrInput)
                                             }

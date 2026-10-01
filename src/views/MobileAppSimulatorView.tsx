@@ -55,7 +55,7 @@ import {
   FileVideo
 } from 'lucide-react';
 import { User, SubscriptionPlanConfig, VideoTemplate, SavedProject, SavedExportedVideo } from '../types';
-import { INITIAL_SUBSCRIPTION_PLANS } from '../data/initialData';
+import { INITIAL_SUBSCRIPTION_PLANS, DISCOVERABLE_CREATORS, CommunityCreator } from '../data/initialData';
 import { ZapUpiPaymentModal } from '../components/ZapUpiPaymentModal';
 import { ExportProgressView } from '../components/ExportProgressView';
 import { CreateTemplateModal } from '../components/CreateTemplateModal';
@@ -222,11 +222,22 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
   // AI Feature Coming Soon Notifications
   const [notifiedAiFeatures, setNotifiedAiFeatures] = useState<Record<string, boolean>>({});
 
-  // Real-time Chat
+  // Real-time Chat & Friend Network
   const [activeChatTag, setActiveChatTag] = useState<string | null>(null);
   const [chatInputText, setChatInputText] = useState<string>('');
-  const [chatMessages, setChatMessages] = useState<Record<string, Array<{ id: string; sender: string; text: string; time: string; isMe: boolean; projectAttachment?: string }>>>({});
-  const [connectedFriends, setConnectedFriends] = useState<Array<{ name: string; tag: string; role: string; online: boolean }>>([]);
+  const [chatMessages, setChatMessages] = useState<Record<string, Array<{ id: string; sender: string; text: string; time: string; isMe: boolean; projectAttachment?: string }>>>({
+    'VID-48291': [
+      { id: 'm1', sender: 'Aarav Sharma', text: 'Hey! Loved your 4K multi-track color grading on the teaser cut.', time: '11:20 AM', isMe: false }
+    ],
+    'VID-19284': [
+      { id: 'm2', sender: 'Neha Kapoor', text: 'Have you tested the new Bézier speed ramps? The slow-mo is super smooth.', time: '12:05 PM', isMe: false }
+    ]
+  });
+  const [connectedFriends, setConnectedFriends] = useState<CommunityCreator[]>([
+    DISCOVERABLE_CREATORS[0],
+    DISCOVERABLE_CREATORS[1]
+  ]);
+  const [socialSubTab, setSocialSubTab] = useState<'friends' | 'search'>('friends');
   const [friendSearchInput, setFriendSearchInput] = useState<string>('');
 
   // Admin Console States (Strictly Gated)
@@ -1203,88 +1214,407 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
                   {/* TAB 4: Social Network & Real-Time Messaging */}
                   {creatorBottomTab === 'social' && (
                     <div className="space-y-3">
-                      {/* Creator Tag Card */}
-                      <div className="p-3 rounded-xl bg-gradient-to-r from-cyan-950/40 to-blue-950/40 border border-cyan-500/30 flex items-center justify-between">
-                        <div>
-                          <span className="text-[9px] text-slate-400 block font-mono">YOUR CREATOR TAG</span>
-                          <span className="text-xs font-bold text-cyan-300 font-mono">{currentUser.userIdTag || 'VID-50124'}</span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSaveToast(`Creator tag ${currentUser.userIdTag || 'VID-50124'} copied!`);
-                            setTimeout(() => setSaveToast(null), 2500);
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 text-[10px] font-bold flex items-center gap-1"
-                        >
-                          <Copy className="w-3 h-3" />
-                          <span>Copy</span>
-                        </button>
-                      </div>
+                      {/* If In Active 1-on-1 Chat */}
+                      {activeChatTag ? (
+                        (() => {
+                          const currentChatFriend = connectedFriends.find(f => f.userIdTag === activeChatTag) || 
+                            DISCOVERABLE_CREATORS.find(f => f.userIdTag === activeChatTag) || {
+                              id: 'unknown',
+                              userIdTag: activeChatTag,
+                              username: 'Creator',
+                              displayName: 'Creator Friend',
+                              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+                              bio: 'CineCut Creator',
+                              role: 'creator',
+                              premiumRole: 'VIP_CREATOR',
+                              isOnline: true,
+                              projectsCount: 10
+                            };
+                          const messages = chatMessages[activeChatTag] || [];
 
-                      {/* Connect Creator Input */}
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Connect with a Creator</span>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="text"
-                            value={friendSearchInput}
-                            onChange={(e) => setFriendSearchInput(e.target.value)}
-                            placeholder="Enter VID-XXXXX or Creator Name..."
-                            className="flex-1 bg-stone-900 border border-stone-800 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                          />
-                          <button
-                            onClick={() => {
-                              if (!friendSearchInput.trim()) return;
-                              const tag = friendSearchInput.startsWith('VID-') ? friendSearchInput : `VID-${Math.floor(10000 + Math.random() * 90000)}`;
-                              const name = friendSearchInput.startsWith('VID-') ? `Creator ${friendSearchInput.slice(4)}` : friendSearchInput;
-                              setConnectedFriends(prev => [...prev, { name, tag, role: 'Creator', online: true }]);
-                              setFriendSearchInput('');
-                              setSaveToast(`Connected with ${name}!`);
-                              setTimeout(() => setSaveToast(null), 2500);
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-stone-950 font-bold text-xs shrink-0"
-                          >
-                            Add
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Connected Creators & Chat Threads */}
-                      <div className="space-y-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Active Conversations ({connectedFriends.length})
-                        </span>
-
-                        {connectedFriends.length === 0 ? (
-                          <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 text-center space-y-1">
-                            <MessageSquare className="w-6 h-6 text-slate-500 mx-auto opacity-50" />
-                            <p className="text-xs text-slate-300 font-bold">No active conversations</p>
-                            <p className="text-[10px] text-slate-500">
-                              Connect with creators above using their VID tag to collaborate on project cuts.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {connectedFriends.map((friend) => (
-                              <div
-                                key={friend.tag}
-                                className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between"
-                              >
-                                <div>
-                                  <h4 className="text-xs font-bold text-white">{friend.name}</h4>
-                                  <span className="text-[10px] text-cyan-400 font-mono">{friend.tag}</span>
+                          return (
+                            <div className="space-y-2.5">
+                              {/* Chat Header */}
+                              <div className="p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setActiveChatTag(null)}
+                                    className="p-1 rounded-lg hover:bg-stone-800 text-slate-400 hover:text-white"
+                                  >
+                                    <ArrowLeft className="w-4 h-4" />
+                                  </button>
+                                  <div className="relative">
+                                    <img
+                                      src={currentChatFriend.avatar}
+                                      alt={currentChatFriend.displayName}
+                                      className="w-7 h-7 rounded-full object-cover border border-cyan-500/40"
+                                    />
+                                    {currentChatFriend.isOnline && (
+                                      <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-stone-900 ring-1 ring-emerald-500" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <h4 className="text-xs font-bold text-white leading-tight">{currentChatFriend.displayName}</h4>
+                                    <span className="text-[10px] text-cyan-400 font-mono">@{currentChatFriend.username}</span>
+                                  </div>
                                 </div>
+
                                 <button
-                                  onClick={() => setActiveChatTag(friend.tag)}
-                                  className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-bold"
+                                  onClick={() => {
+                                    const shareText = `🎬 Check out my project cut "${videoTitle}" with speed curves & color grading!`;
+                                    setChatMessages(prev => ({
+                                      ...prev,
+                                      [activeChatTag]: [
+                                        ...(prev[activeChatTag] || []),
+                                        {
+                                          id: `msg-${Date.now()}`,
+                                          sender: currentUser.displayName || currentUser.username,
+                                          text: shareText,
+                                          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                          isMe: true,
+                                          projectAttachment: videoTitle
+                                        }
+                                      ]
+                                    }));
+                                    setSaveToast(`Shared timeline "${videoTitle}" with ${currentChatFriend.displayName}!`);
+                                    setTimeout(() => setSaveToast(null), 2500);
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1 border border-cyan-500/30"
+                                  title="Share current timeline cut into chat"
                                 >
-                                  Open Chat
+                                  <Share2 className="w-3 h-3" />
+                                  <span>Share Cut</span>
                                 </button>
                               </div>
-                            ))}
+
+                              {/* Chat Messages List */}
+                              <div className="p-3 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-2 h-56 overflow-y-auto">
+                                {messages.length === 0 ? (
+                                  <div className="text-center py-8 text-slate-500 space-y-1">
+                                    <MessageSquare className="w-6 h-6 mx-auto opacity-40 text-cyan-400" />
+                                    <p className="text-xs text-slate-400">Start the conversation with {currentChatFriend.displayName}!</p>
+                                    <p className="text-[10px] text-slate-600">Share cuts, ask for color grading feedback, or collaborate.</p>
+                                  </div>
+                                ) : (
+                                  messages.map((m) => (
+                                    <div
+                                      key={m.id}
+                                      className={`flex flex-col ${m.isMe ? 'items-end' : 'items-start'}`}
+                                    >
+                                      <div
+                                        className={`max-w-[82%] p-2 rounded-xl text-xs ${
+                                          m.isMe
+                                            ? 'bg-cyan-600 text-white rounded-br-none shadow-sm'
+                                            : 'bg-stone-800 text-slate-200 rounded-bl-none border border-stone-700'
+                                        }`}
+                                      >
+                                        <p className="leading-relaxed">{m.text}</p>
+                                        {m.projectAttachment && (
+                                          <div className="mt-1.5 p-1.5 rounded-lg bg-black/40 border border-white/10 flex items-center gap-1.5 text-[10px] text-cyan-200">
+                                            <Film className="w-3 h-3 shrink-0" />
+                                            <span className="truncate font-semibold">{m.projectAttachment}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <span className="text-[9px] text-slate-500 mt-0.5 px-1">{m.time}</span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+
+                              {/* Chat Input Bar */}
+                              <div className="flex gap-1.5">
+                                <input
+                                  type="text"
+                                  value={chatInputText}
+                                  onChange={(e) => setChatInputText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && chatInputText.trim()) {
+                                      const text = chatInputText.trim();
+                                      setChatInputText('');
+                                      setChatMessages(prev => ({
+                                        ...prev,
+                                        [activeChatTag]: [
+                                          ...(prev[activeChatTag] || []),
+                                          {
+                                            id: `msg-${Date.now()}`,
+                                            sender: currentUser.displayName || currentUser.username,
+                                            text,
+                                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                            isMe: true
+                                          }
+                                        ]
+                                      }));
+                                    }
+                                  }}
+                                  placeholder={`Message ${currentChatFriend.displayName}...`}
+                                  className="flex-1 bg-stone-900 border border-stone-800 focus:border-cyan-400 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                                />
+                                <button
+                                  onClick={() => {
+                                    if (!chatInputText.trim()) return;
+                                    const text = chatInputText.trim();
+                                    setChatInputText('');
+                                    setChatMessages(prev => ({
+                                      ...prev,
+                                      [activeChatTag]: [
+                                        ...(prev[activeChatTag] || []),
+                                        {
+                                          id: `msg-${Date.now()}`,
+                                          sender: currentUser.displayName || currentUser.username,
+                                          text,
+                                          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                          isMe: true
+                                        }
+                                      ]
+                                    }));
+                                  }}
+                                  className="p-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-stone-950 font-bold shrink-0"
+                                >
+                                  <Send className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        /* Normal Friends & Discover Network Screen */
+                        <div className="space-y-3">
+                          {/* Creator Tag Card */}
+                          <div className="p-3 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-stone-900 to-blue-950/40 border border-cyan-500/30 flex items-center justify-between">
+                            <div>
+                              <span className="text-[9px] text-slate-400 block font-mono">YOUR CREATOR TAG</span>
+                              <span className="text-xs font-bold text-cyan-300 font-mono tracking-wider">{currentUser.userIdTag || 'VID-71829'}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(currentUser.userIdTag || 'VID-71829');
+                                setSaveToast(`Creator tag ${currentUser.userIdTag || 'VID-71829'} copied to clipboard!`);
+                                setTimeout(() => setSaveToast(null), 2500);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 text-[10px] font-bold flex items-center gap-1 border border-cyan-500/20"
+                            >
+                              <Copy className="w-3 h-3" />
+                              <span>Copy Tag</span>
+                            </button>
                           </div>
-                        )}
-                      </div>
+
+                          {/* Social Sub-Tabs: My Friends vs Search & Discover */}
+                          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-stone-950 border border-stone-800 text-xs">
+                            <button
+                              onClick={() => setSocialSubTab('friends')}
+                              className={`py-1.5 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                socialSubTab === 'friends'
+                                  ? 'bg-cyan-500 text-stone-950 shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              <span>My Friends ({connectedFriends.length})</span>
+                            </button>
+                            <button
+                              onClick={() => setSocialSubTab('search')}
+                              className={`py-1.5 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                socialSubTab === 'search'
+                                  ? 'bg-cyan-500 text-stone-950 shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              <Search className="w-3.5 h-3.5" />
+                              <span>Find &amp; Add Creators</span>
+                            </button>
+                          </div>
+
+                          {/* SUB-TAB 1: SEARCH & DISCOVER CREATORS */}
+                          {socialSubTab === 'search' && (
+                            <div className="space-y-3">
+                              {/* Search Input Bar */}
+                              <div className="relative">
+                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                  type="text"
+                                  value={friendSearchInput}
+                                  onChange={(e) => setFriendSearchInput(e.target.value)}
+                                  placeholder="Search by Name, @username, or VID tag..."
+                                  className="w-full bg-stone-900 border border-stone-800 focus:border-cyan-400 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                                />
+                                {friendSearchInput && (
+                                  <button
+                                    onClick={() => setFriendSearchInput('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Search Results / Discoverable Directory */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                  <span>
+                                    {friendSearchInput.trim() ? 'Matching Creators' : 'Recommended Studio Creators'}
+                                  </span>
+                                  <span className="text-cyan-400 font-mono">
+                                    {DISCOVERABLE_CREATORS.filter(c => 
+                                      !friendSearchInput.trim() ||
+                                      c.displayName.toLowerCase().includes(friendSearchInput.toLowerCase()) ||
+                                      c.username.toLowerCase().includes(friendSearchInput.toLowerCase()) ||
+                                      c.userIdTag.toLowerCase().includes(friendSearchInput.toLowerCase()) ||
+                                      c.bio.toLowerCase().includes(friendSearchInput.toLowerCase())
+                                    ).length} found
+                                  </span>
+                                </div>
+
+                                <div className="space-y-2 max-h-72 overflow-y-auto pr-0.5">
+                                  {DISCOVERABLE_CREATORS.filter(c => 
+                                    !friendSearchInput.trim() ||
+                                    c.displayName.toLowerCase().includes(friendSearchInput.toLowerCase()) ||
+                                    c.username.toLowerCase().includes(friendSearchInput.toLowerCase()) ||
+                                    c.userIdTag.toLowerCase().includes(friendSearchInput.toLowerCase()) ||
+                                    c.bio.toLowerCase().includes(friendSearchInput.toLowerCase())
+                                  ).map((creator) => {
+                                    const isAlreadyFriend = connectedFriends.some(f => f.userIdTag === creator.userIdTag || f.id === creator.id);
+
+                                    return (
+                                      <div
+                                        key={creator.id}
+                                        className="p-3 rounded-2xl bg-stone-900/90 border border-stone-800/80 hover:border-cyan-500/40 transition-all flex items-center justify-between gap-3 shadow-sm"
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          <div className="relative shrink-0">
+                                            <img
+                                              src={creator.avatar}
+                                              alt={creator.displayName}
+                                              className="w-9 h-9 rounded-full object-cover border border-cyan-500/40"
+                                            />
+                                            {creator.isOnline && (
+                                              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-stone-900" />
+                                            )}
+                                          </div>
+                                          <div className="min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                              <h4 className="text-xs font-bold text-white truncate">{creator.displayName}</h4>
+                                              <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-stone-800 text-slate-400">
+                                                {creator.userIdTag}
+                                              </span>
+                                            </div>
+                                            <p className="text-[10px] text-cyan-400 font-mono truncate">@{creator.username}</p>
+                                            <p className="text-[10px] text-slate-400 truncate mt-0.5">{creator.bio}</p>
+                                          </div>
+                                        </div>
+
+                                        <div className="shrink-0 flex items-center gap-1.5">
+                                          {isAlreadyFriend ? (
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
+                                                <Check className="w-3 h-3" />
+                                                <span>Friends</span>
+                                              </span>
+                                              <button
+                                                onClick={() => setActiveChatTag(creator.userIdTag)}
+                                                className="p-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300"
+                                                title="Open Direct Chat"
+                                              >
+                                                <MessageSquare className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <button
+                                              onClick={() => {
+                                                setConnectedFriends(prev => [...prev, creator]);
+                                                setSaveToast(`Added ${creator.displayName} to your friends!`);
+                                                setTimeout(() => setSaveToast(null), 2500);
+                                              }}
+                                              className="px-2.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-stone-950 font-bold text-xs flex items-center gap-1 shadow-sm transition-all"
+                                            >
+                                              <UserPlus className="w-3.5 h-3.5" />
+                                              <span>Add</span>
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* SUB-TAB 2: MY CONNECTED FRIENDS LIST */}
+                          {socialSubTab === 'friends' && (
+                            <div className="space-y-2">
+                              {connectedFriends.length === 0 ? (
+                                <div className="p-6 rounded-2xl bg-stone-900/60 border border-stone-800 text-center space-y-2">
+                                  <Users className="w-8 h-8 text-slate-500 mx-auto opacity-50" />
+                                  <h4 className="text-xs font-bold text-white">No Friends Connected Yet</h4>
+                                  <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                                    Use the <strong>"Find &amp; Add Creators"</strong> tab above to search and connect with other video editors.
+                                  </p>
+                                  <button
+                                    onClick={() => setSocialSubTab('search')}
+                                    className="px-3.5 py-1.5 rounded-xl bg-cyan-500 text-stone-950 font-bold text-xs inline-flex items-center gap-1.5"
+                                  >
+                                    <Search className="w-3.5 h-3.5" />
+                                    <span>Discover Creators</span>
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {connectedFriends.map((friend) => (
+                                    <div
+                                      key={friend.userIdTag || friend.id}
+                                      className="p-3 rounded-2xl bg-stone-900 border border-stone-800/90 flex items-center justify-between gap-2 shadow-sm"
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="relative shrink-0">
+                                          <img
+                                            src={friend.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                                            alt={friend.displayName}
+                                            className="w-9 h-9 rounded-full object-cover border border-cyan-500/40"
+                                          />
+                                          {friend.isOnline && (
+                                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-stone-900" />
+                                          )}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <div className="flex items-center gap-1.5">
+                                            <h4 className="text-xs font-bold text-white truncate">{friend.displayName}</h4>
+                                            <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                              {friend.premiumRole || 'CREATOR'}
+                                            </span>
+                                          </div>
+                                          <p className="text-[10px] text-cyan-400 font-mono truncate">@{friend.username} • {friend.userIdTag}</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        <button
+                                          onClick={() => setActiveChatTag(friend.userIdTag)}
+                                          className="px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold text-xs flex items-center gap-1 border border-cyan-500/30"
+                                        >
+                                          <MessageSquare className="w-3.5 h-3.5" />
+                                          <span>Chat</span>
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setConnectedFriends(prev => prev.filter(f => f.userIdTag !== friend.userIdTag));
+                                            setSaveToast(`Removed ${friend.displayName} from friends.`);
+                                            setTimeout(() => setSaveToast(null), 2500);
+                                          }}
+                                          className="p-1.5 rounded-xl hover:bg-stone-800 text-slate-500 hover:text-rose-400"
+                                          title="Remove Friend"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
