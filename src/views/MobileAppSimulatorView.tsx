@@ -1597,7 +1597,7 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
             <div className="p-3 rounded-2xl bg-stone-950 border border-stone-800/80">
               <span className="text-slate-500 block text-[10px] uppercase font-mono">Package ID</span>
-              <span className="font-mono font-bold text-cyan-300 truncate block mt-0.5">com.cincut.editor.studio</span>
+              <span className="font-mono font-bold text-cyan-300 truncate block mt-0.5">com.cincut.pro.studio</span>
             </div>
             <div className="p-3 rounded-2xl bg-stone-950 border border-stone-800/80">
               <span className="text-slate-500 block text-[10px] uppercase font-mono">Firestore Cloud</span>

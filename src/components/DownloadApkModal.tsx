@@ -86,7 +86,7 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
                   Cincut Video Editor Pro v1.0.0
                 </h4>
                 <p className="text-xs text-slate-300 max-w-md">
-                  Brand new standalone package ID (<code className="text-cyan-300 font-mono">com.cincut.editor.studio</code>). Installs cleanly without loading or conflicting with any older apps.
+                  Brand new standalone package ID (<code className="text-cyan-300 font-mono">com.cincut.pro.studio</code>). Installs cleanly without loading or conflicting with any older apps.
                 </p>
               </div>
 
@@ -145,11 +145,11 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
               </div>
               <div className="p-3 rounded-xl bg-studio-850 border border-studio-800">
                 <span className="text-slate-400 block text-[10px] uppercase font-mono">Package ID</span>
-                <span className="text-xs font-mono font-bold text-cyan-300">com.cincut.editor.studio</span>
+                <span className="text-xs font-mono font-bold text-cyan-300">com.cincut.pro.studio</span>
               </div>
               <div className="p-3 rounded-xl bg-studio-850 border border-studio-800">
                 <span className="text-slate-400 block text-[10px] uppercase font-mono">Version</span>
-                <span className="text-xs font-mono font-bold text-emerald-400">1.0.0 (Code 1)</span>
+                <span className="text-xs font-mono font-bold text-emerald-400">1.0.1 (Code 2)</span>
               </div>
             </div>
           </div>
@@ -158,13 +158,13 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
           <div className="p-4 rounded-2xl bg-studio-850 border border-studio-750 space-y-2 text-xs">
             <span className="font-bold text-slate-200 flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-cyan-400" />
-              <span>Clean Installation (Standalone Package):</span>
+              <span>Clean Installation (New Standalone Package):</span>
             </span>
             <ol className="list-decimal pl-5 space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
-              <li>Tap <strong>Download Cincut APK v1.0.0</strong> above directly on your Android phone.</li>
-              <li>This version uses a fresh package ID (<code>com.cincut.editor.studio</code>), so it will never conflict with or open your older app version.</li>
+              <li>Tap <strong>Download Cincut APK v1.0.1</strong> directly on your Android phone.</li>
+              <li>This version uses a brand new package ID (<code>com.cincut.pro.studio</code>), ensuring your device will never read or conflict with older installed app versions.</li>
               <li>When opening the downloaded APK, tap <strong>Settings</strong> and enable <strong>"Allow from this source"</strong> if prompted.</li>
-              <li>Tap <strong>Install</strong> to enjoy the clean v1.0.0 app.</li>
+              <li>Tap <strong>Install</strong> to launch the clean, standalone v1.0.1 app.</li>
             </ol>
           </div>
 
