@@ -23,7 +23,7 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
-  const apkFilename = 'CincutVideoEditorPro-v2.0.0.apk';
+  const apkFilename = 'CincutVideoEditorPro-v1.0.3.apk';
   const downloadUrl = `/${apkFilename}`;
   const githubReleaseUrl = 'https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases';
 
@@ -54,11 +54,11 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
               <div className="flex items-center space-x-2">
                 <h3 className="text-base font-bold text-white">Cincut Video Editor Pro</h3>
                 <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  v2.0.0 Brand New Package
+                  v1.0.3 Production
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                100% Completely New Android App with 14 Color Filters &amp; Live ZapUPI Gateway
+                Official CineCut Pro App with all screens, real ZapUPI gateway &amp; 14 color filters
               </p>
             </div>
           </div>
@@ -80,17 +80,17 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 font-mono">
-                    New Application ID
+                    Official App Package
                   </span>
                   <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono">
-                    ZERO CONFLICT
+                    ALL FEATURES INCLUDED
                   </span>
                 </div>
                 <h4 className="text-lg font-black text-white">
-                  Cincut Video Editor Pro v2.0.0
+                  Cincut Video Editor Pro v1.0.3
                 </h4>
                 <p className="text-xs text-slate-300 max-w-md leading-relaxed">
-                  Has brand new ID <code className="text-cyan-300 font-mono bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/30">com.cincut.official.videoeditor</code>. Installs as a completely separate new app without conflicting with or reading from any older versions!
+                  Official CineCut package <code className="text-cyan-300 font-mono bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/30">com.cincut.pro.studio</code>. Includes multi-track timeline, 14 color filters, real ZapUPI payment gateway, AI Director, CineRooms &amp; CineLive, and Admin Dashboard.
                 </p>
               </div>
 
@@ -102,7 +102,7 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
                   className="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:to-blue-400 text-stone-950 font-black text-xs shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download New App APK (v2.0.0)</span>
+                  <span>Download CineCut APK (v1.0.3)</span>
                 </a>
 
                 <button

@@ -98,11 +98,19 @@ fun EditorCanvas(
 
                         // Draw cinematic video frame background representation
                         val clipColor = when (clip.colorGrading.lutFilter) {
-                            "Cinematic Teal & Orange" -> Color(0xFF1E3A4C)
-                            "Cyberpunk" -> Color(0xFF38104A)
-                            "Noir" -> Color(0xFF262626)
-                            "Vintage 16mm" -> Color(0xFF4A3828)
-                            "Golden Hour" -> Color(0xFF4D3818)
+                            "Cinematic Gold" -> Color(0xFF4A3A18)
+                            "Teal & Orange", "Cinematic Teal & Orange" -> Color(0xFF1E3A4C)
+                            "Cyberpunk Neon", "Cyberpunk" -> Color(0xFF38104A)
+                            "Noir B&W", "Noir" -> Color(0xFF262626)
+                            "Warm Sunset", "Golden Hour" -> Color(0xFF4D3818)
+                            "Retro VHS" -> Color(0xFF3A2845)
+                            "Emerald Film" -> Color(0xFF1B3D2B)
+                            "Tokyo Night" -> Color(0xFF16234D)
+                            "Pastel Dream" -> Color(0xFF442D45)
+                            "Bleach Bypass" -> Color(0xFF30343D)
+                            "Lomo Chrome" -> Color(0xFF453020)
+                            "Cold Ice" -> Color(0xFF183B4D)
+                            "Vintage Sepia", "Vintage 16mm" -> Color(0xFF4A3828)
                             else -> Color(0xFF1A2138)
                         }
 

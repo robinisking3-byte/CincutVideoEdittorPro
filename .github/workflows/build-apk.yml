@@ -32,27 +32,23 @@ jobs:
 
       - name: Build CineCut App APK
         run: |
-          cd android
-          echo "Generating Gradle Wrapper with installed Gradle 8.10.2..."
-          gradle wrapper --gradle-version 8.10.2 || true
           echo "Starting fresh compilation of CineCut Android app from source..."
           gradle :app:clean :app:assembleRelease --no-daemon --stacktrace || gradle :app:assembleDebug --no-daemon --stacktrace
-          cd ..
 
       - name: Organize & Package Release Artifacts
         run: |
           mkdir -p build-output
-          # Locate freshly built APK in android/app/build/outputs/apk/
-          APP_APK=$(find android/app/build/outputs/apk/ -name "*.apk" ! -name "*unaligned*" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
+          # Locate freshly built APK from root :app (app/build/outputs/apk/)
+          APP_APK=$(find app/build/outputs/apk/ -name "*.apk" ! -name "*unaligned*" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
           
           if [ -z "$APP_APK" ] || [ ! -f "$APP_APK" ]; then
-            echo "Searching android/ build directory for freshly built APK..."
-            APP_APK=$(find android/ -name "*.apk" ! -name "*unaligned*" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
+            echo "Searching all build directories for freshly built APK..."
+            APP_APK=$(find . -name "*.apk" ! -name "*unaligned*" ! -path "./build-output/*" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
           fi
 
           if [ -n "$APP_APK" ] && [ -f "$APP_APK" ]; then
             echo "SUCCESS: Freshly built APK created from source code at: $APP_APK"
-            cp -v "$APP_APK" build-output/CincutVideoEditorPro-v2.0.0.apk
+            cp -v "$APP_APK" build-output/CincutVideoEditorPro-v1.0.3.apk
             cp -v "$APP_APK" build-output/CincutVideoEdittorPro-latest.apk
           else
             echo "CRITICAL BUILD FAILURE: No newly compiled APK was produced by Gradle!"
@@ -65,7 +61,7 @@ jobs:
       - name: Upload APKs as GitHub Artifacts (Instant Download)
         uses: actions/upload-artifact@v4
         with:
-          name: CincutVideoEditorPro-v2.0.0
+          name: CincutVideoEditorPro-v1.0.3
           path: build-output/*.apk
           retention-days: 60
 
@@ -74,25 +70,26 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: v2.0.0-${{ github.run_number }}
-          name: "Cincut Video Editor Pro Release v2.0.0 (Build #${{ github.run_number }})"
+          tag_name: v1.0.3-${{ github.run_number }}
+          name: "Cincut Video Editor Pro Release v1.0.3 (Build #${{ github.run_number }})"
           body: |
-            ### 🎬 Cincut Video Editor Pro v2.0.0 Brand New Package Release
+            ### 🎬 Cincut Video Editor Pro v1.0.3 Official Production Release
 
-            Brand new standalone package ID (`com.cincut.official.videoeditor`). Installs as a 100% completely new, separate app on your Android device — never reads, conflicts with, or checks against any older builds.
+            Official CineCut Pro application (`com.cincut.pro.studio` v1.0.3, VersionCode 4) compiled freshly from source code. Includes all features discussed till now:
 
-            - 📱 **Direct Download APK**: [**CincutVideoEditorPro-v2.0.0.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v2.0.0-${{ github.run_number }}/CincutVideoEditorPro-v2.0.0.apk)
+            - 📱 **Direct Download APK**: [**CincutVideoEditorPro-v1.0.3.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.0.3-${{ github.run_number }}/CincutVideoEditorPro-v1.0.3.apk)
+            - 📱 **Latest Direct Link**: [**CincutVideoEdittorPro-latest.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.0.3-${{ github.run_number }}/CincutVideoEdittorPro-latest.apk)
 
-            #### What's New in v2.0.0:
-            - **100% Brand New Android Application ID**: `com.cincut.official.videoeditor` installs cleanly as a separate, fresh app.
-            - **14 Professional Color Grading Filters**: Cinematic Gold, Teal & Orange, Noir B&W, Cyberpunk Neon, Warm Sunset, Retro VHS, Emerald Film, Tokyo Night, Pastel Dream, Bleach Bypass, Lomo Chrome, Cold Ice, and Vintage Sepia.
-            - **Live ZapUPI Payment Gateway**: Official merchant integration (`zapfe5c7f3c3967c502e85648e908153d54`) with dynamic QR code and 12-digit UTR verification.
-            - **Real Video Editing & Media Import**: Device media picker for clips & photos + frame-by-frame canvas export engine with automatic downloads.
-            - **Fresh Package ID**: `com.cincut.pro.studio` (Version Code 2, Version Name 1.0.1)
-            - **Completely Plain Login/Register Screen**: Removed all "Edit Firebase API Key" dialogs, status cards, and sensitive admin texts. Clean modern design with Google OAuth and Email options.
-            - **Zero Old Package Conflict**: Installs cleanly on Android devices as a brand new app.
-            - **Authentic Video Export Pipeline**: Real video engine with HTML5 canvas recording directly into the in-app gallery.
-            - **Custom User Template Engine**: Create and publish reusable editing presets synced to Firestore.
+            #### All Complete Features Included:
+            - **Official CineCut App**: Full multi-track video timeline, audio tracks, picture-in-picture, and real video rendering.
+            - **14 Professional Color Grading Filters**: Cinematic Gold, Teal & Orange, Noir B&W, Cyberpunk Neon, Warm Sunset, Retro VHS, Emerald Film, Tokyo Night, Pastel Dream, Bleach Bypass, Lomo Chrome, Cold Ice, Vintage Sepia, and Normal.
+            - **Live ZapUPI Payment Gateway**: Real ZapUPI merchant integration (`zapfe5c7f3c3967c502e85648e908153d54`) with dynamic QR code & 12-digit UTR verification.
+            - **Admin Dashboard**: Full administrative console with role management, festival promotions, and system metrics for designated admin (`robinisking3@gmail.com`).
+            - **CineRooms & CineLive**: Collaborative multi-user editing rooms and real-time M3U8 HLS streaming player.
+            - **Festival Celebrations & Offers**: Diwali, Holi, Navratri, and New Year festive discount themes, animations, and CineCoin rewards.
+            - **CineCoins Wallet**: Yellow daily coins & Blue AI coins with instant credit and wallet synchronization.
+            - **Community & Social Hub**: Friend search, direct messaging, user template marketplace, and project sharing.
+            - **Firebase Cloud Sync & FCM Notifications**: Cloud Firestore backup and background push notification receiver service.
             - **AI Features**: Marked "Coming Soon" with alert notifications.
           files: build-output/*.apk
           draft: false

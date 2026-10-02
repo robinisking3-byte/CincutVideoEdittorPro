@@ -52,7 +52,18 @@ object VideoRenderer {
 
         // LUT / Stylized color tints
         when (grading.lutFilter) {
-            "Cinematic Teal & Orange" -> {
+            "Cinematic Gold" -> {
+                val gold = ColorMatrix(
+                    floatArrayOf(
+                        1.28f, 0f, 0f, 0f, 22f,
+                        0f, 1.12f, 0f, 0f, 12f,
+                        0f, 0f, 0.78f, 0f, -18f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                matrix.timesAssign(gold)
+            }
+            "Teal & Orange", "Cinematic Teal & Orange" -> {
                 val tealOrange = ColorMatrix(
                     floatArrayOf(
                         1.2f, 0f, 0f, 0f, 15f,
@@ -63,7 +74,7 @@ object VideoRenderer {
                 )
                 matrix.timesAssign(tealOrange)
             }
-            "Cyberpunk" -> {
+            "Cyberpunk Neon", "Cyberpunk" -> {
                 val cyber = ColorMatrix(
                     floatArrayOf(
                         1.25f, 0f, 0.2f, 0f, 20f,
@@ -74,7 +85,7 @@ object VideoRenderer {
                 )
                 matrix.timesAssign(cyber)
             }
-            "Noir" -> {
+            "Noir B&W", "Noir" -> {
                 matrix.setToSaturation(0f)
                 val noir = ColorMatrix(
                     floatArrayOf(
@@ -86,18 +97,7 @@ object VideoRenderer {
                 )
                 matrix.timesAssign(noir)
             }
-            "Vintage 16mm" -> {
-                val vintage = ColorMatrix(
-                    floatArrayOf(
-                        1.1f, 0.05f, 0f, 0f, 12f,
-                        0.05f, 1.05f, 0f, 0f, 8f,
-                        0f, 0.05f, 0.85f, 0f, -5f,
-                        0f, 0f, 0f, 1f, 0f
-                    )
-                )
-                matrix.timesAssign(vintage)
-            }
-            "Golden Hour" -> {
+            "Warm Sunset", "Golden Hour" -> {
                 val golden = ColorMatrix(
                     floatArrayOf(
                         1.3f, 0f, 0f, 0f, 25f,
@@ -107,6 +107,95 @@ object VideoRenderer {
                     )
                 )
                 matrix.timesAssign(golden)
+            }
+            "Retro VHS" -> {
+                val vhs = ColorMatrix(
+                    floatArrayOf(
+                        1.15f, 0.05f, 0.05f, 0f, 10f,
+                        0.05f, 1.1f, 0f, 0f, 5f,
+                        0.1f, 0f, 0.85f, 0f, 20f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                matrix.timesAssign(vhs)
+            }
+            "Emerald Film" -> {
+                val emerald = ColorMatrix(
+                    floatArrayOf(
+                        0.9f, 0f, 0f, 0f, -10f,
+                        0f, 1.25f, 0f, 0f, 15f,
+                        0f, 0f, 0.95f, 0f, -5f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                matrix.timesAssign(emerald)
+            }
+            "Tokyo Night" -> {
+                val tokyo = ColorMatrix(
+                    floatArrayOf(
+                        0.85f, 0f, 0.15f, 0f, -15f,
+                        0f, 0.9f, 0.1f, 0f, -10f,
+                        0.2f, 0.1f, 1.4f, 0f, 25f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                matrix.timesAssign(tokyo)
+            }
+            "Pastel Dream" -> {
+                val pastel = ColorMatrix(
+                    floatArrayOf(
+                        0.95f, 0.05f, 0.05f, 0f, 35f,
+                        0.05f, 0.95f, 0.05f, 0f, 30f,
+                        0.05f, 0.05f, 1.05f, 0f, 40f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                matrix.timesAssign(pastel)
+            }
+            "Bleach Bypass" -> {
+                matrix.setToSaturation(0.45f)
+                val bleach = ColorMatrix(
+                    floatArrayOf(
+                        1.3f, 0f, 0f, 0f, -10f,
+                        0f, 1.3f, 0f, 0f, -10f,
+                        0f, 0f, 1.3f, 0f, -10f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                matrix.timesAssign(bleach)
+            }
+            "Lomo Chrome" -> {
+                val lomo = ColorMatrix(
+                    floatArrayOf(
+                        1.35f, 0f, 0f, 0f, 15f,
+                        0f, 1.15f, 0f, 0f, -5f,
+                        0f, 0f, 1.25f, 0f, 25f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                matrix.timesAssign(lomo)
+            }
+            "Cold Ice" -> {
+                val cold = ColorMatrix(
+                    floatArrayOf(
+                        0.8f, 0f, 0f, 0f, -15f,
+                        0f, 0.95f, 0f, 0f, 5f,
+                        0f, 0f, 1.35f, 0f, 30f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                matrix.timesAssign(cold)
+            }
+            "Vintage Sepia", "Vintage 16mm" -> {
+                val sepia = ColorMatrix(
+                    floatArrayOf(
+                        1.15f, 0.15f, 0.05f, 0f, 20f,
+                        0.1f, 1.05f, 0.05f, 0f, 12f,
+                        0f, 0.05f, 0.75f, 0f, -15f,
+                        0f, 0f, 0f, 1f, 0f
+                    )
+                )
+                matrix.timesAssign(sepia)
             }
         }
 
