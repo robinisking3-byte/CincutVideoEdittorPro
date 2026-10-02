@@ -9,6 +9,54 @@
       "client_info": {
         "mobilesdk_app_id": "1:174317441213:android:f98a132df9e2fd21f767d4",
         "android_client_info": {
+          "package_name": "com.cincut.official.videoeditor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "174317441213-2nc6n2pf4ec2nv8ufh03lfqmsmmpieee.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXFpqzck7YVQOhtLWdyZDAawNhxzU0Bng"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:174317441213:android:f98a132df9e2fd21f767d4",
+        "android_client_info": {
+          "package_name": "com.cincut.pro.studio"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "174317441213-2nc6n2pf4ec2nv8ufh03lfqmsmmpieee.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXFpqzck7YVQOhtLWdyZDAawNhxzU0Bng"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:174317441213:android:f98a132df9e2fd21f767d4",
+        "android_client_info": {
           "package_name": "com.cincut.videoeditor.pro"
         }
       },

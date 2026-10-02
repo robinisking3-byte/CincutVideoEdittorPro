@@ -32,46 +32,39 @@ jobs:
 
       - name: Build CineCut App APK
         run: |
-          if [ -d "android" ]; then
-            cd android
-            gradle wrapper || true
-            chmod +x gradlew || true
-            ./gradlew :app:assembleRelease --no-daemon --stacktrace || gradle :app:assembleRelease --no-daemon --stacktrace || ./gradlew :app:assembleDebug --no-daemon || true
-            cd ..
-          fi
-          gradle :app:assembleRelease --no-daemon || true
+          cd android
+          chmod +x gradlew
+          echo "Starting fresh compilation of CineCut Android app from source..."
+          ./gradlew :app:clean :app:assembleRelease --no-daemon --stacktrace || ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          cd ..
 
       - name: Organize & Package Release Artifacts
         run: |
           mkdir -p build-output
-          # Locate newly built release APK
-          APP_APK=$(find android/app/build/outputs/apk/ -name "*.apk" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
+          # Locate freshly built APK in android/app/build/outputs/apk/
+          APP_APK=$(find android/app/build/outputs/apk/ -name "*.apk" ! -name "*unaligned*" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
           
           if [ -z "$APP_APK" ] || [ ! -f "$APP_APK" ]; then
-            APP_APK=$(find android/ -name "*.apk" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
-          fi
-
-          if [ -z "$APP_APK" ] || [ ! -f "$APP_APK" ]; then
-            APP_APK=$(find . -name "*.apk" ! -path "./build-output/*" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
+            echo "Searching android/ build directory for freshly built APK..."
+            APP_APK=$(find android/ -name "*.apk" ! -name "*unaligned*" ! -path "*/intermediates/*" 2>/dev/null | head -n 1)
           fi
 
           if [ -n "$APP_APK" ] && [ -f "$APP_APK" ]; then
-            echo "Successfully found newly built APK at: $APP_APK"
-            cp "$APP_APK" build-output/CincutVideoEdittorPro-v1.0.2.apk
-            cp "$APP_APK" build-output/CincutVideoEdittorPro-v1.0.1.apk
-            cp "$APP_APK" build-output/CincutVideoEdittorPro-latest.apk
+            echo "SUCCESS: Freshly built APK created from source code at: $APP_APK"
+            cp -v "$APP_APK" build-output/CincutVideoEditorPro-v2.0.0.apk
+            cp -v "$APP_APK" build-output/CincutVideoEdittorPro-latest.apk
           else
-            echo "ERROR: No APK found after build step!"
+            echo "CRITICAL BUILD FAILURE: No newly compiled APK was produced by Gradle!"
             exit 1
           fi
 
-          echo "Generated APK artifacts in build-output:"
+          echo "Packaged APK artifacts ready for distribution:"
           ls -lh build-output/
 
       - name: Upload APKs as GitHub Artifacts (Instant Download)
         uses: actions/upload-artifact@v4
         with:
-          name: CincutVideoEdittorPro-v1.0.2
+          name: CincutVideoEditorPro-v2.0.0
           path: build-output/*.apk
           retention-days: 60
 
@@ -80,20 +73,20 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: v1.0.2-${{ github.run_number }}
-          name: "Cincut Video Editor Pro Release v1.0.2 (Build #${{ github.run_number }})"
+          tag_name: v2.0.0-${{ github.run_number }}
+          name: "Cincut Video Editor Pro Release v2.0.0 (Build #${{ github.run_number }})"
           body: |
-            ### 🎬 Cincut Video Editor Pro v1.0.2 Production Release
+            ### 🎬 Cincut Video Editor Pro v2.0.0 Brand New Package Release
 
-            Brand new standalone package ID (`com.cincut.pro.studio`) with Version Code **3** — upgrades cleanly over any previous installation on Android devices.
+            Brand new standalone package ID (`com.cincut.official.videoeditor`). Installs as a 100% completely new, separate app on your Android device — never reads, conflicts with, or checks against any older builds.
 
-            - 📱 **Direct Download APK**: [**CincutVideoEdittorPro-v1.0.2.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.0.2-${{ github.run_number }}/CincutVideoEdittorPro-v1.0.2.apk)
+            - 📱 **Direct Download APK**: [**CincutVideoEditorPro-v2.0.0.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v2.0.0-${{ github.run_number }}/CincutVideoEditorPro-v2.0.0.apk)
 
-            #### What's in v1.0.2:
-            - **Incremented Version Code 3**: Forces Android OS and device package managers to immediately upgrade from any older build.
-            - **Live ZapUPI Payment Gateway**: Official merchant integration with instant dynamic QR code and 12-digit UTR verification.
-            - **Real Video Editing & Media Import**: Zero-permission device gallery media picker + HTML5/Canvas frame-by-frame video export engine with instant downloads.
-            - **Friend Search & Social Suite**: Search creators by handle, add friends, and share project cuts.
+            #### What's New in v2.0.0:
+            - **100% Brand New Android Application ID**: `com.cincut.official.videoeditor` installs cleanly as a separate, fresh app.
+            - **14 Professional Color Grading Filters**: Cinematic Gold, Teal & Orange, Noir B&W, Cyberpunk Neon, Warm Sunset, Retro VHS, Emerald Film, Tokyo Night, Pastel Dream, Bleach Bypass, Lomo Chrome, Cold Ice, and Vintage Sepia.
+            - **Live ZapUPI Payment Gateway**: Official merchant integration (`zapfe5c7f3c3967c502e85648e908153d54`) with dynamic QR code and 12-digit UTR verification.
+            - **Real Video Editing & Media Import**: Device media picker for clips & photos + frame-by-frame canvas export engine with automatic downloads.
             - **Fresh Package ID**: `com.cincut.pro.studio` (Version Code 2, Version Name 1.0.1)
             - **Completely Plain Login/Register Screen**: Removed all "Edit Firebase API Key" dialogs, status cards, and sensitive admin texts. Clean modern design with Google OAuth and Email options.
             - **Zero Old Package Conflict**: Installs cleanly on Android devices as a brand new app.

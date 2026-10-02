@@ -59,7 +59,21 @@ fun EditorScreen(
     }
 
     val aspectRatios = listOf("16:9", "9:16", "1:1", "4:5")
-    val filters = listOf("None", "Cinematic Gold", "Noir B&W", "Warm Sunset", "Cool Teal", "Vivid Contrast")
+    val filters = listOf(
+        "None",
+        "Cinematic Gold",
+        "Teal & Orange",
+        "Noir B&W",
+        "Warm Sunset",
+        "Cool Teal",
+        "Cyberpunk Neon",
+        "Retro VHS",
+        "Emerald Film",
+        "Tokyo Night",
+        "Pastel Dream",
+        "Bleach Bypass",
+        "Vivid Contrast"
+    )
     val speeds = listOf(0.5f, 1.0f, 1.5f, 2.0f)
 
     Column(
@@ -69,6 +83,22 @@ fun EditorScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        val filterOverlayColor = when (selectedFilter) {
+            "Cinematic Gold" -> Color(0x33F59E0B)
+            "Teal & Orange" -> Color(0x2E06B6D4)
+            "Noir B&W" -> Color(0x4D000000)
+            "Warm Sunset" -> Color(0x33F97316)
+            "Cool Teal" -> Color(0x3314B8A6)
+            "Cyberpunk Neon" -> Color(0x33EC4899)
+            "Retro VHS" -> Color(0x33A16207)
+            "Emerald Film" -> Color(0x3310B981)
+            "Tokyo Night" -> Color(0x336366F1)
+            "Pastel Dream" -> Color(0x29F472B6)
+            "Bleach Bypass" -> Color(0x3B64748B)
+            "Vivid Contrast" -> Color(0x2B3B82F6)
+            else -> Color.Transparent
+        }
+
         // Video Preview Canvas
         Box(
             modifier = Modifier
@@ -79,6 +109,13 @@ fun EditorScreen(
                 .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
+            if (filterOverlayColor != Color.Transparent) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(filterOverlayColor)
+                )
+            }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),

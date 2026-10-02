@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { 
   X, 
   Download, 
-  Smartphone, 
   CheckCircle2, 
   ShieldCheck, 
   Copy, 
   ExternalLink,
   Scissors,
-  RefreshCw,
-  AlertTriangle
+  Sparkles,
+  Palette,
+  Check
 } from 'lucide-react';
 
 interface DownloadApkModalProps {
@@ -23,13 +23,12 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
-  const apkFilename = 'CincutVideoEdittorPro-v1.0.2.apk';
+  const apkFilename = 'CincutVideoEditorPro-v2.0.0.apk';
   const downloadUrl = `/${apkFilename}`;
   const githubReleaseUrl = 'https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases';
 
   const handleDownload = () => {
     setDownloadInitiated(true);
-    // Direct link to the compiled Android APK
     window.location.href = downloadUrl;
   };
 
@@ -54,12 +53,12 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-base font-bold text-white">Cincut Video Editor Pro</h3>
-                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  v1.0.2 (Build Code 3)
+                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  v2.0.0 Brand New Package
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Official Native Android App with Real ZapUPI Gateway &amp; Media Export Suite
+                100% Completely New Android App with 14 Color Filters &amp; Live ZapUPI Gateway
               </p>
             </div>
           </div>
@@ -76,22 +75,22 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
         <div className="p-6 space-y-5">
           
           {/* Main Direct Download Banner */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/60 via-stone-850 to-stone-900 border-2 border-cyan-500/40 shadow-xl space-y-4">
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/70 via-stone-850 to-stone-900 border-2 border-cyan-500/50 shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 font-mono">
-                    Newest Release
+                    New Application ID
                   </span>
-                  <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
-                    BUMPED VERSION CODE 3
+                  <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono">
+                    ZERO CONFLICT
                   </span>
                 </div>
-                <h4 className="text-lg font-bold text-white">
-                  Cincut Video Editor Pro v1.0.2
+                <h4 className="text-lg font-black text-white">
+                  Cincut Video Editor Pro v2.0.0
                 </h4>
-                <p className="text-xs text-slate-300 max-w-md">
-                  Includes live ZapUPI Payment Gateway, 12-digit UTR Verification, real Media Picking from gallery, and direct video file export rendering!
+                <p className="text-xs text-slate-300 max-w-md leading-relaxed">
+                  Has brand new ID <code className="text-cyan-300 font-mono bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/30">com.cincut.official.videoeditor</code>. Installs as a completely separate new app without conflicting with or reading from any older versions!
                 </p>
               </div>
 
@@ -100,10 +99,10 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
                   href={downloadUrl}
                   download={apkFilename}
                   onClick={handleDownload}
-                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:to-blue-400 text-stone-950 font-extrabold text-xs shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:to-blue-400 text-stone-950 font-black text-xs shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download Latest APK (v1.0.2)</span>
+                  <span>Download New App APK (v2.0.0)</span>
                 </a>
 
                 <button
@@ -121,7 +120,7 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
                   className="px-3 py-1.5 rounded-lg bg-stone-850 hover:bg-stone-800 text-cyan-300 text-[11px] font-medium flex items-center justify-center gap-1.5 border border-cyan-500/30 transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  <span>GitHub Releases (Direct APK)</span>
+                  <span>GitHub Releases</span>
                 </a>
               </div>
             </div>
@@ -136,23 +135,28 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
             )}
           </div>
 
-          {/* Device Upgrade / Installation Steps */}
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2.5 text-xs">
-            <div className="flex items-center gap-2 text-amber-400 font-bold">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>How to make sure your device runs the newest app:</span>
+          {/* New Features in v2.0.0 */}
+          <div className="p-4 rounded-2xl bg-stone-850 border border-stone-800 space-y-2.5 text-xs">
+            <span className="font-bold text-slate-200 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              <span>What's Brand New in v2.0.0:</span>
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-300">
+              <div className="flex items-start gap-1.5 p-2 rounded-lg bg-stone-900 border border-stone-800">
+                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white block">100% Brand New Identity:</strong>
+                  Package ID <code className="text-cyan-300 font-mono">com.cincut.official.videoeditor</code> installs side-by-side with its own clean storage.
+                </div>
+              </div>
+              <div className="flex items-start gap-1.5 p-2 rounded-lg bg-stone-900 border border-stone-800">
+                <Palette className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white block">14 Cinematic Filters:</strong>
+                  Teal &amp; Orange, Warm Sunset, Noir B&amp;W, Retro VHS, Tokyo Night, Emerald Film, Pastel Dream, and more.
+                </div>
+              </div>
             </div>
-            <ol className="list-decimal pl-5 space-y-1.5 text-slate-200 text-[11px] leading-relaxed">
-              <li>
-                <strong>Step 1:</strong> If you already have an older build installed on your phone or emulator, <strong>uninstall / remove the previous "Cincut" app</strong> from your home screen or App Settings to clear stale cached files.
-              </li>
-              <li>
-                <strong>Step 2:</strong> Download and install the fresh <strong>{apkFilename}</strong> (Version Code <strong>3</strong>).
-              </li>
-              <li>
-                <strong>Step 3:</strong> Android will recognize it as a fresh package and launch the newest version with the live ZapUPI gateway and real media import suite!
-              </li>
-            </ol>
           </div>
 
           {/* Android App Specifications */}
@@ -167,15 +171,15 @@ export const DownloadApkModal: React.FC<DownloadApkModalProps> = ({ isOpen, onCl
               </div>
               <div className="p-3 rounded-xl bg-stone-850 border border-stone-800">
                 <span className="text-slate-400 block text-[10px] uppercase font-mono">Package ID</span>
-                <span className="text-xs font-mono font-bold text-cyan-300">com.cincut.pro.studio</span>
+                <span className="text-xs font-mono font-bold text-cyan-300">com.cincut.official.videoeditor</span>
               </div>
               <div className="p-3 rounded-xl bg-stone-850 border border-stone-800">
                 <span className="text-slate-400 block text-[10px] uppercase font-mono">Version</span>
-                <span className="text-xs font-mono font-bold text-emerald-400">1.0.2</span>
+                <span className="text-xs font-mono font-bold text-emerald-400">2.0.0</span>
               </div>
               <div className="p-3 rounded-xl bg-stone-850 border border-stone-800">
                 <span className="text-slate-400 block text-[10px] uppercase font-mono">Version Code</span>
-                <span className="text-xs font-mono font-bold text-amber-400">3 (Latest)</span>
+                <span className="text-xs font-mono font-bold text-amber-400">1 (Fresh)</span>
               </div>
             </div>
           </div>

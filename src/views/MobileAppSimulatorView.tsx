@@ -131,7 +131,7 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
 
   // Framing & Filters
   const [selectedAspect, setSelectedAspect] = useState<'16:9' | '9:16' | '1:1' | '4:5'>('9:16');
-  const [selectedFilter, setSelectedFilter] = useState<'Normal' | 'Cinematic' | 'Warm' | 'Noir' | 'Cyberpunk' | 'Vintage'>('Cinematic');
+  const [selectedFilter, setSelectedFilter] = useState<string>('Cinematic');
   const [projectTitle, setProjectTitle] = useState<string>('Sunset_Reel_Cut');
   const [saveToast, setSaveToast] = useState<string | null>(null);
 
@@ -416,12 +416,28 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
     switch (selectedFilter) {
       case 'Cinematic':
         return 'contrast(120%) saturate(125%) sepia(10%)';
-      case 'Warm':
-        return 'sepia(25%) saturate(135%) brightness(105%)';
+      case 'Teal & Orange':
+        return 'contrast(130%) saturate(140%) hue-rotate(15deg) sepia(15%)';
+      case 'Warm Sunset':
+        return 'sepia(30%) saturate(145%) brightness(108%) contrast(105%)';
       case 'Noir':
-        return 'grayscale(100%) contrast(140%) brightness(95%)';
+        return 'grayscale(100%) contrast(150%) brightness(95%)';
       case 'Cyberpunk':
-        return 'hue-rotate(180deg) saturate(180%) contrast(120%)';
+        return 'hue-rotate(185deg) saturate(190%) contrast(125%)';
+      case 'Retro VHS':
+        return 'sepia(35%) contrast(90%) saturate(120%) brightness(105%)';
+      case 'Emerald Film':
+        return 'hue-rotate(50deg) saturate(115%) contrast(110%) sepia(12%)';
+      case 'Tokyo Night':
+        return 'hue-rotate(220deg) saturate(160%) contrast(130%) brightness(92%)';
+      case 'Pastel Dream':
+        return 'saturate(130%) brightness(115%) contrast(90%)';
+      case 'Bleach Bypass':
+        return 'grayscale(55%) contrast(160%) brightness(95%)';
+      case 'Lomo Chrome':
+        return 'contrast(140%) saturate(175%) brightness(102%)';
+      case 'Cold Ice':
+        return 'hue-rotate(190deg) saturate(110%) brightness(105%) contrast(110%)';
       case 'Vintage':
         return 'sepia(45%) contrast(95%) saturate(85%)';
       default:
@@ -981,21 +997,46 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
 
                         {activeEditorTool === 'filters' && (
                           <div className="space-y-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Color Matrix Grading</span>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {(['Normal', 'Cinematic', 'Warm', 'Noir', 'Cyberpunk', 'Vintage'] as const).map((flt) => (
-                                <button
-                                  key={flt}
-                                  onClick={() => setSelectedFilter(flt)}
-                                  className={`py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                                    selectedFilter === flt
-                                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm'
-                                      : 'bg-stone-800 text-slate-300 hover:bg-stone-750'
-                                  }`}
-                                >
-                                  {flt}
-                                </button>
-                              ))}
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Color Matrix Grading (14 Filters)</span>
+                              <span className="text-[9px] font-mono text-cyan-400 font-bold">{selectedFilter}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+                              {[
+                                { id: 'Normal', label: 'Normal', desc: 'Natural balanced', dot: 'from-stone-500 to-stone-700' },
+                                { id: 'Cinematic', label: 'Cinematic Gold', desc: 'Hollywood gold contrast', dot: 'from-amber-500 to-yellow-700' },
+                                { id: 'Teal & Orange', label: 'Teal & Orange', desc: 'Blockbuster standard', dot: 'from-teal-400 to-amber-600' },
+                                { id: 'Warm Sunset', label: 'Warm Sunset', desc: 'Golden hour amber glow', dot: 'from-orange-500 to-rose-600' },
+                                { id: 'Noir', label: 'Noir B&W', desc: 'High-contrast monochrome', dot: 'from-zinc-400 to-black' },
+                                { id: 'Cyberpunk', label: 'Cyberpunk Neon', desc: 'Vivid magenta & cyan shift', dot: 'from-fuchsia-500 to-cyan-500' },
+                                { id: 'Retro VHS', label: 'Retro VHS', desc: '90s analog tape warmth', dot: 'from-yellow-600 to-amber-800' },
+                                { id: 'Emerald Film', label: 'Emerald Film', desc: 'Moody indie cinema green', dot: 'from-emerald-500 to-teal-800' },
+                                { id: 'Tokyo Night', label: 'Tokyo Night', desc: 'Deep indigo & violet neon', dot: 'from-indigo-500 to-purple-800' },
+                                { id: 'Pastel Dream', label: 'Pastel Dream', desc: 'Soft ethereal dreamy glow', dot: 'from-pink-400 to-rose-400' },
+                                { id: 'Bleach Bypass', label: 'Bleach Bypass', desc: 'Desaturated metallic gritty', dot: 'from-slate-400 to-stone-700' },
+                                { id: 'Lomo Chrome', label: 'Lomo Chrome', desc: 'Punchy cross-processed', dot: 'from-lime-500 to-emerald-700' },
+                                { id: 'Cold Ice', label: 'Cold Ice', desc: 'Crisp arctic Nordic blue', dot: 'from-cyan-400 to-blue-600' },
+                                { id: 'Vintage', label: 'Vintage Sepia', desc: 'Antique photograph warmth', dot: 'from-amber-600 to-stone-800' },
+                              ].map((flt) => {
+                                const active = selectedFilter === flt.id;
+                                return (
+                                  <button
+                                    key={flt.id}
+                                    onClick={() => setSelectedFilter(flt.id)}
+                                    className={`p-1.5 rounded-lg text-left transition-all border flex items-center gap-2 ${
+                                      active
+                                        ? 'bg-cyan-950/70 border-cyan-400/80 text-white shadow-sm ring-1 ring-cyan-400/50'
+                                        : 'bg-stone-800/80 border-stone-750 text-slate-300 hover:bg-stone-750'
+                                    }`}
+                                  >
+                                    <div className={`w-3.5 h-3.5 rounded-full shrink-0 bg-gradient-to-tr ${flt.dot} shadow-inner`} />
+                                    <div className="min-w-0">
+                                      <p className="text-[10px] font-bold truncate leading-tight">{flt.label}</p>
+                                      <p className="text-[8px] text-slate-400 truncate leading-tight">{flt.desc}</p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -1994,7 +2035,7 @@ export const MobileAppSimulatorView: React.FC<MobileAppSimulatorViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
             <div className="p-3 rounded-2xl bg-stone-950 border border-stone-800/80">
               <span className="text-slate-500 block text-[10px] uppercase font-mono">Package ID</span>
-              <span className="font-mono font-bold text-cyan-300 truncate block mt-0.5">com.cincut.pro.studio</span>
+              <span className="font-mono font-bold text-cyan-300 truncate block mt-0.5">com.cincut.official.videoeditor</span>
             </div>
             <div className="p-3 rounded-2xl bg-stone-950 border border-stone-800/80">
               <span className="text-slate-500 block text-[10px] uppercase font-mono">Firestore Cloud</span>

@@ -10,5 +10,3 @@ android/**/build
 android/local.properties
 .tools
 *.apk
-!public/*.apk
-!releases/*.apk
