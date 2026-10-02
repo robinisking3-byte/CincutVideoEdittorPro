@@ -33,9 +33,10 @@ jobs:
       - name: Build CineCut App APK
         run: |
           cd android
-          chmod +x gradlew
+          echo "Generating Gradle Wrapper with installed Gradle 8.10.2..."
+          gradle wrapper --gradle-version 8.10.2 || true
           echo "Starting fresh compilation of CineCut Android app from source..."
-          ./gradlew :app:clean :app:assembleRelease --no-daemon --stacktrace || ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          gradle :app:clean :app:assembleRelease --no-daemon --stacktrace || gradle :app:assembleDebug --no-daemon --stacktrace
           cd ..
 
       - name: Organize & Package Release Artifacts
