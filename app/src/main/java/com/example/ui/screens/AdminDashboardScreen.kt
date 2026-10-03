@@ -58,7 +58,7 @@ fun AdminDashboardScreen(
         val activeStreams = liveStreams.count { it.isLive }
         val coinCirc = allUsers.sumOf { it.coinBalance }
         val activeMembers = allUsers.count { it.membershipTier != MembershipTier.FREE }.toLong()
-        val roomMembers = rooms.sumOf { it.membersCount }.toLong()
+        val roomMembers = rooms.sumOf { it.memberCount }.toLong()
         val totalProjectsCount = repository.projects.value.size.toLong().coerceAtLeast(1L)
 
         AdminDashboardMetrics(
