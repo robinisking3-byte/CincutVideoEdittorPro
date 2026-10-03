@@ -2580,7 +2580,7 @@ class CineCutRepository(context: Context? = null) {
         _activePaymentOrder.value = order
 
         // Sync to cloud if available
-        coroutineScope.launch {
+        repoScope.launch {
             try {
                 cloudSyncEngine?.savePaymentOrderToCloud(order)
             } catch (_: Exception) {}
@@ -2619,14 +2619,15 @@ class CineCutRepository(context: Context? = null) {
         val adminNotif = AdminNotification(
             title = "New UTR Verification Request",
             message = "User ${order.userDisplayName} (${order.userEmail}) submitted UTR $cleanUtr for ₹${order.amountInr} (${order.title}). Approval needed.",
-            type = "PAYMENT",
-            severity = "CRITICAL",
-            actionUrl = "admin/payments"
+            audience = "ADMIN",
+            category = "Payment",
+            deepLink = "cinecut://admin",
+            sentByAdminUid = order.userId
         )
         _adminNotifications.value = listOf(adminNotif) + _adminNotifications.value
 
         // Sync to Firestore
-        coroutineScope.launch {
+        repoScope.launch {
             try {
                 cloudSyncEngine?.savePaymentOrderToCloud(pendingOrder)
             } catch (_: Exception) {}
