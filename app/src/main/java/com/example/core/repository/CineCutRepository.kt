@@ -2710,7 +2710,7 @@ class CineCutRepository(context: Context? = null) {
         }
 
         // Cloud sync
-        coroutineScope.launch {
+        repoScope.launch {
             try {
                 cloudSyncEngine?.savePaymentOrderToCloud(approvedOrder)
             } catch (_: Exception) {}
@@ -2745,7 +2745,7 @@ class CineCutRepository(context: Context? = null) {
             _activePaymentOrder.value = rejectedOrder
         }
 
-        coroutineScope.launch {
+        repoScope.launch {
             try {
                 cloudSyncEngine?.savePaymentOrderToCloud(rejectedOrder)
             } catch (_: Exception) {}

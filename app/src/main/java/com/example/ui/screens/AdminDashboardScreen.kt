@@ -44,6 +44,7 @@ fun AdminDashboardScreen(
     val autonomousPresets by repository.autonomousPresets.collectAsState()
     val adminNotifications by repository.adminNotifications.collectAsState()
     val securityHealth by repository.securityHealth.collectAsState()
+    val paymentOrders by repository.paymentOrders.collectAsState()
 
     var activeDestination by remember { mutableStateOf(AdminNavDestination.OVERVIEW) }
 
