@@ -891,31 +891,44 @@ enum class AdminNavDestination(
     FESTIVALS("Festival & Events", AdminPermission.MANAGE_FESTIVALS, "Remote festival themes, animations, bonuses & promotional offers")
 }
 
-// ================= ZAPUPI PAYMENT GATEWAY & ORDERS ================= //
+// ================= REAL DIRECT UPI PAYMENT (robintyagi@fam) & UTR APPROVALS ================= //
 
 data class ZapUpiGatewayConfig(
     val isEnabled: Boolean = true,
-    val maskedApiKey: String = "••••••••••••••••••••153d54",
+    val upiId: String = "robintyagi@fam",
+    val payeeName: String = "Robin Tyagi (CineCut Pro)",
+    val maskedApiKey: String = "UPI Direct • robintyagi@fam",
     val timeoutSeconds: Int = 480, // 8-minute countdown
     val currency: String = "INR",
     val isTestMode: Boolean = false,
-    val status: String = "Connected ✓",
+    val status: String = "Active (robintyagi@fam)",
     val lastVerifiedAt: Long = System.currentTimeMillis()
 )
 
 enum class PaymentOrderStatus {
-    PENDING, VERIFYING, PAID, FAILED, EXPIRED, REFUNDED
+    PENDING,
+    PENDING_APPROVAL,
+    VERIFYING,
+    PAID,
+    APPROVED,
+    REJECTED,
+    FAILED,
+    EXPIRED,
+    REFUNDED
 }
 
 data class ZapUpiOrder(
-    val orderId: String = "ZAP_CC_" + System.currentTimeMillis().toString().takeLast(8),
+    val orderId: String = "CC_UPI_" + System.currentTimeMillis().toString().takeLast(8),
     val userId: String,
+    val userEmail: String = "",
     val userDisplayName: String = "Creator Member",
     val amountInr: Double,
     val itemType: String, // "CINECOINS", "MEMBERSHIP"
     val itemId: String, // "coins_500", "coins_1500", "coins_5000", "tier_gold"
     val title: String,
     val status: PaymentOrderStatus = PaymentOrderStatus.PENDING,
+    val upiId: String = "robintyagi@fam",
+    val payeeName: String = "Robin Tyagi",
     val qrPayload: String = "",
     val upiIntentUrl: String = "",
     val paytmIntentUrl: String = "",
@@ -923,6 +936,8 @@ data class ZapUpiOrder(
     val createdAt: Long = System.currentTimeMillis(),
     val expiresAt: Long = System.currentTimeMillis() + 480000L, // 8 minutes
     val paidAt: Long? = null,
+    val reviewedByAdmin: String? = null,
+    val adminRejectionReason: String? = null,
     val refundReason: String? = null
 )
 

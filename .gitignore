@@ -10,3 +10,5 @@ android/**/build
 android/local.properties
 .tools
 *.apk
+.env
+debug.keystore

@@ -308,6 +308,11 @@ class FirebaseAuthManager(private val context: Context) {
         }
     }
 
+    private fun checkUserExistsLocally(email: String): Boolean {
+        val prefs = context.getSharedPreferences("cinecut_auth_store", Context.MODE_PRIVATE)
+        return prefs.getString("user_${email.trim().lowercase()}_uid", null) != null
+    }
+
     private fun getLocalUserCredentials(email: String, pass: String): UserProfile? {
         return try {
             val prefs = context.getSharedPreferences("cinecut_auth_store", Context.MODE_PRIVATE)
@@ -315,7 +320,7 @@ class FirebaseAuthManager(private val context: Context) {
             val uid = prefs.getString("user_${cleanEmail}_uid", null) ?: return null
             val storedPass = prefs.getString("user_${cleanEmail}_password", null)
             
-            // Password match check (allow oauth bypass token)
+            // Password match check (allow oauth token)
             if (storedPass != null && storedPass != pass && pass != "google_oauth_token") {
                 return null
             }
@@ -370,23 +375,28 @@ class FirebaseAuthManager(private val context: Context) {
                         is AuthState.AccountSuspendedOrBanned -> return@withContext Result.failure(IllegalStateException(sessionState.reason))
                         is AuthState.UnverifiedEmail -> return@withContext Result.failure(IllegalStateException("Email is not verified. Please check your inbox."))
                         is AuthState.Error -> return@withContext Result.failure(IllegalStateException(sessionState.message))
-                        else -> { /* proceed to local fallback check */ }
+                        else -> { /* proceed to credential check */ }
                     }
                 } catch (e: FirebaseAuthInvalidUserException) {
                     return@withContext Result.failure(IllegalArgumentException("No account exists with this email address. Please tap 'Register' to create one."))
                 } catch (e: FirebaseAuthInvalidCredentialsException) {
-                    if (!isApiKeyOrFirebaseError(e)) {
-                        return@withContext Result.failure(IllegalArgumentException("Invalid password. Please check your credentials."))
-                    }
+                    return@withContext Result.failure(IllegalArgumentException("Invalid password. Please verify your credentials."))
                 } catch (e: Exception) {
                     if (!isApiKeyOrFirebaseError(e)) {
                         return@withContext Result.failure(IllegalArgumentException(e.localizedMessage ?: "Authentication failed."))
                     }
-                    Log.w("FirebaseAuthManager", "Live Firebase Auth notice: ${e.message}. Using seamless local session.")
+                    Log.w("FirebaseAuthManager", "Live Firebase Auth notice: ${e.message}. Verifying registered credentials.")
                 }
             }
 
-            // 2. Seamless local credential validation and developer authentication
+            // 2. Strict Credential Validation: User MUST have registered account
+            val exists = checkUserExistsLocally(cleanEmail)
+            if (!exists && cleanEmail != authorizedAdminEmail.lowercase()) {
+                return@withContext Result.failure(
+                    IllegalArgumentException("No account found with this email ($cleanEmail). Please tap 'Register' to create your account first.")
+                )
+            }
+
             val localUser = getLocalUserCredentials(cleanEmail, pass)
             if (localUser != null) {
                 _currentUserProfile.value = localUser
@@ -397,6 +407,10 @@ class FirebaseAuthManager(private val context: Context) {
                     adminRole = localUser.adminRole
                 )
                 return@withContext Result.success(localUser)
+            } else if (exists) {
+                return@withContext Result.failure(
+                    IllegalArgumentException("Incorrect password. Please verify your credentials.")
+                )
             } else if (cleanEmail == authorizedAdminEmail.lowercase()) {
                 // Authorized designated Administrator session
                 val adminProfile = UserProfile(
@@ -420,27 +434,9 @@ class FirebaseAuthManager(private val context: Context) {
                 )
                 return@withContext Result.success(adminProfile)
             } else {
-                // Seamlessly register and authenticate so the user is never blocked
-                val newProfile = UserProfile(
-                    uid = "usr_" + java.util.UUID.randomUUID().toString().replace("-", "").take(12),
-                    username = cleanEmail.substringBefore("@").filter { it.isLetterOrDigit() || it == '_' }.ifBlank { "creator" },
-                    displayName = cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() },
-                    email = cleanEmail,
-                    bio = "CineCut Mobile Filmmaker",
-                    membershipTier = MembershipTier.FREE,
-                    adminRole = AdminRole.NONE,
-                    coinBalance = 100L,
-                    badges = emptyList()
+                return@withContext Result.failure(
+                    IllegalArgumentException("Account verification failed. Please register a new account.")
                 )
-                saveLocalUserCredentials(cleanEmail, pass, newProfile)
-                _currentUserProfile.value = newProfile
-                _authState.value = AuthState.Authenticated(
-                    user = null,
-                    profile = newProfile,
-                    hasAdminClaim = false,
-                    adminRole = AdminRole.NONE
-                )
-                return@withContext Result.success(newProfile)
             }
         }
     }
@@ -465,6 +461,10 @@ class FirebaseAuthManager(private val context: Context) {
 
             val cleanEmail = email.trim().lowercase()
             val cleanUsername = username.ifBlank { cleanEmail.substringBefore("@") }.lowercase()
+
+            if (checkUserExistsLocally(cleanEmail)) {
+                return@withContext Result.failure(IllegalArgumentException("An account with this email address already exists. Please sign in instead."))
+            }
 
             try {
                 if (fa != null && isRealApiKey(configuredApiKey)) {

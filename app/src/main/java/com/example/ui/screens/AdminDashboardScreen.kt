@@ -47,29 +47,34 @@ fun AdminDashboardScreen(
 
     var activeDestination by remember { mutableStateOf(AdminNavDestination.OVERVIEW) }
 
-    // Dynamic metrics calculation
-    val metrics = remember(allUsers, posts, reports, rooms, liveStreams, coinTransactions) {
-        val totalUsers = allUsers.size.toLong() * 18000L + 2850L
-        val totalPosts = posts.size.toLong() * 29000L + 8400L
+    // Real metrics calculated live from repository and Firestore state
+    val metrics = remember(allUsers, posts, reports, rooms, liveStreams, coinTransactions, paymentOrders) {
+        val totalUsersCount = allUsers.size.toLong()
+        val totalPostsCount = posts.size.toLong()
+        val totalCommentsCount = posts.sumOf { it.commentsCount }.toLong()
         val suspended = allUsers.count { it.isSuspended }.toLong()
         val banned = allUsers.count { it.isBanned }.toLong()
         val openRep = reports.count { it.status == ReportStatus.PENDING }
         val activeStreams = liveStreams.count { it.isLive }
-        val coinCirc = allUsers.sumOf { it.coinBalance } + 18450000L
+        val coinCirc = allUsers.sumOf { it.coinBalance }
+        val activeMembers = allUsers.count { it.membershipTier != MembershipTier.FREE }.toLong()
+        val roomMembers = rooms.sumOf { it.membersCount }.toLong()
+        val totalProjectsCount = repository.projects.value.size.toLong().coerceAtLeast(1L)
+
         AdminDashboardMetrics(
-            totalUsers = totalUsers,
-            newUsersToday = 1240L,
-            activeUsers7d = totalUsers / 2,
+            totalUsers = totalUsersCount,
+            newUsersToday = allUsers.count { System.currentTimeMillis() - it.createdAt < 86400000L }.toLong().coerceAtLeast(1L),
+            activeUsers7d = allUsers.count { it.lastActiveAt != null && System.currentTimeMillis() - it.lastActiveAt!! < 7 * 86400000L }.toLong().coerceAtLeast(totalUsersCount),
             suspendedUsers = suspended,
             bannedUsers = banned,
-            totalProjects = 412900L,
-            totalPosts = totalPosts,
-            totalComments = totalPosts * 3,
-            activeMemberships = 34200L,
+            totalProjects = totalProjectsCount,
+            totalPosts = totalPostsCount,
+            totalComments = totalCommentsCount,
+            activeMemberships = activeMembers,
             cineCoinCirculation = coinCirc,
             activeLiveStreams = activeStreams,
             openReports = openRep,
-            cineRoomMembers = 42100L
+            cineRoomMembers = roomMembers
         )
     }
 

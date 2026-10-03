@@ -2553,57 +2553,116 @@ class CineCutRepository(context: Context? = null) {
         title: String
     ): ZapUpiOrder {
         val user = _currentUser.value
-        val orderId = "ZAP_CC_" + System.currentTimeMillis().toString().takeLast(8)
-        val vpa = "cinecut.zapupi@icici"
-        val upiUrl = "upi://pay?pa=$vpa&pn=CineCut%20Studios&am=${amountInr}&tr=$orderId&cu=INR&tn=CineCut%20${title.replace(" ", "%20")}"
-        val paytmUrl = "paytmmp://pay?pa=$vpa&pn=CineCut%20Studios&am=${amountInr}&tr=$orderId&cu=INR"
+        val orderId = "CC_UPI_" + System.currentTimeMillis().toString().takeLast(8)
+        val vpa = "robintyagi@fam"
+        val cleanTitle = title.replace(" ", "%20")
+        val upiUrl = "upi://pay?pa=$vpa&pn=CineCut%20Pro&am=${amountInr}&tr=$orderId&cu=INR&tn=CineCut%20$cleanTitle"
 
         val order = ZapUpiOrder(
             orderId = orderId,
             userId = user.uid,
+            userEmail = user.email,
             userDisplayName = user.displayName,
             amountInr = amountInr,
             itemType = itemType,
             itemId = itemId,
             title = title,
+            upiId = vpa,
+            payeeName = "Robin Tyagi (CineCut Pro)",
             status = PaymentOrderStatus.PENDING,
             qrPayload = upiUrl,
             upiIntentUrl = upiUrl,
-            paytmIntentUrl = paytmUrl,
+            paytmIntentUrl = upiUrl,
             createdAt = System.currentTimeMillis(),
             expiresAt = System.currentTimeMillis() + (_zapUpiConfig.value.timeoutSeconds * 1000L)
         )
         _paymentOrders.value = listOf(order) + _paymentOrders.value
         _activePaymentOrder.value = order
+
+        // Sync to cloud if available
+        coroutineScope.launch {
+            try {
+                cloudSyncEngine?.savePaymentOrderToCloud(order)
+            } catch (_: Exception) {}
+        }
         return order
     }
 
+    /**
+     * User submits the 12-digit UTR from their UPI transaction.
+     * The payment order moves to PENDING_APPROVAL and is dispatched to the Admin Panel.
+     */
     fun verifyZapUpiPaymentOrder(orderId: String, utrNumber: String?): Pair<Boolean, String> {
         val order = _paymentOrders.value.find { it.orderId == orderId }
-            ?: return Pair(false, "Order not found")
+            ?: return Pair(false, "Payment order not found")
 
-        // Idempotency check: if already processed, return success
-        if (order.status == PaymentOrderStatus.PAID) {
-            return Pair(true, "Order already verified and paid!")
+        if (order.status == PaymentOrderStatus.APPROVED || order.status == PaymentOrderStatus.PAID) {
+            return Pair(true, "Payment already approved by Admin!")
         }
 
         val cleanUtr = utrNumber?.trim().orEmpty()
         if (cleanUtr.length != 12 || !cleanUtr.all { it.isDigit() }) {
-            return Pair(false, "Invalid UTR. Please provide the exact 12-digit numeric UPI reference number from your payment receipt.")
+            return Pair(false, "Invalid UTR. Please enter the exact 12-digit numeric UPI reference number from your payment app receipt.")
         }
 
-        // Mark PAID
-        val updatedOrder = order.copy(
-            status = PaymentOrderStatus.PAID,
-            utrNumber = cleanUtr,
-            paidAt = System.currentTimeMillis()
+        // Move to PENDING_APPROVAL for Admin review
+        val pendingOrder = order.copy(
+            status = PaymentOrderStatus.PENDING_APPROVAL,
+            utrNumber = cleanUtr
         )
         _paymentOrders.value = _paymentOrders.value.map {
-            if (it.orderId == orderId) updatedOrder else it
+            if (it.orderId == orderId) pendingOrder else it
         }
-        _activePaymentOrder.value = updatedOrder
+        _activePaymentOrder.value = pendingOrder
 
-        // Credit coins or upgrade tier
+        // Create Admin Notification
+        val adminNotif = AdminNotification(
+            title = "New UTR Verification Request",
+            message = "User ${order.userDisplayName} (${order.userEmail}) submitted UTR $cleanUtr for ₹${order.amountInr} (${order.title}). Approval needed.",
+            type = "PAYMENT",
+            severity = "CRITICAL",
+            actionUrl = "admin/payments"
+        )
+        _adminNotifications.value = listOf(adminNotif) + _adminNotifications.value
+
+        // Sync to Firestore
+        coroutineScope.launch {
+            try {
+                cloudSyncEngine?.savePaymentOrderToCloud(pendingOrder)
+            } catch (_: Exception) {}
+        }
+
+        val log = AuditLog(
+            adminUid = order.userId,
+            action = "UPI_UTR_SUBMITTED",
+            target = orderId,
+            reason = "User submitted 12-digit UTR $cleanUtr for payment ₹${order.amountInr} to robintyagi@fam"
+        )
+        _auditLogs.value = listOf(log) + _auditLogs.value
+
+        return Pair(true, "UTR $cleanUtr submitted successfully! Your payment is now in the Admin Approval queue. Your subscription will activate as soon as admin approves.")
+    }
+
+    /**
+     * Admin approves the user's UPI payment and grants subscription / coins
+     */
+    fun adminApproveUpiPayment(orderId: String): Boolean {
+        val order = _paymentOrders.value.find { it.orderId == orderId } ?: return false
+        val admin = _currentUser.value
+
+        val approvedOrder = order.copy(
+            status = PaymentOrderStatus.APPROVED,
+            paidAt = System.currentTimeMillis(),
+            reviewedByAdmin = admin.displayName
+        )
+        _paymentOrders.value = _paymentOrders.value.map {
+            if (it.orderId == orderId) approvedOrder else it
+        }
+        if (_activePaymentOrder.value?.orderId == orderId) {
+            _activePaymentOrder.value = approvedOrder
+        }
+
+        // Grant benefits to user
         if (order.itemType == "CINECOINS") {
             val coins = when (order.itemId) {
                 "coins_500" -> 500L
@@ -2619,11 +2678,13 @@ class CineCutRepository(context: Context? = null) {
                 lastTransactionAt = System.currentTimeMillis()
             )
             val user = _currentUser.value
-            _currentUser.value = user.copy(coinBalance = newBal)
+            if (user.uid == order.userId) {
+                _currentUser.value = user.copy(coinBalance = newBal)
+            }
             val tx = CineCoinTransaction(
                 userId = order.userId,
                 amount = coins,
-                reason = "Purchased $coins CineCoins via ZapUPI (Order $orderId, UTR $cleanUtr)",
+                reason = "Purchased $coins CineCoins via UPI (Order $orderId, UTR ${order.utrNumber ?: ""}) - Admin Approved",
                 type = "PURCHASE",
                 balanceAfter = newBal
             )
@@ -2638,19 +2699,66 @@ class CineCutRepository(context: Context? = null) {
                 "tier_founder" -> MembershipTier.FOUNDER
                 else -> MembershipTier.GOLD
             }
-            val current = _currentUser.value
-            _currentUser.value = current.copy(membershipTier = tier)
+            val user = _currentUser.value
+            if (user.uid == order.userId) {
+                _currentUser.value = user.copy(membershipTier = tier)
+            }
+            // Update in allUsers list as well
+            _allUsers.value = _allUsers.value.map {
+                if (it.uid == order.userId) it.copy(membershipTier = tier) else it
+            }
+        }
+
+        // Cloud sync
+        coroutineScope.launch {
+            try {
+                cloudSyncEngine?.savePaymentOrderToCloud(approvedOrder)
+            } catch (_: Exception) {}
         }
 
         val log = AuditLog(
-            adminUid = order.userId,
-            action = "ZAPUPI_PAYMENT_SUCCESS",
+            adminUid = admin.uid,
+            action = "ADMIN_APPROVED_UPI_PAYMENT",
             target = orderId,
-            reason = "Payment of ₹${order.amountInr} verified with UTR $cleanUtr"
+            reason = "Admin ${admin.displayName} approved payment of ₹${order.amountInr} (UTR: ${order.utrNumber})"
         )
         _auditLogs.value = listOf(log) + _auditLogs.value
+        return true
+    }
 
-        return Pair(true, "Payment verified successfully!")
+    /**
+     * Admin rejects the user's UPI payment with a reason
+     */
+    fun adminRejectUpiPayment(orderId: String, reason: String): Boolean {
+        val order = _paymentOrders.value.find { it.orderId == orderId } ?: return false
+        val admin = _currentUser.value
+
+        val rejectedOrder = order.copy(
+            status = PaymentOrderStatus.REJECTED,
+            reviewedByAdmin = admin.displayName,
+            adminRejectionReason = reason
+        )
+        _paymentOrders.value = _paymentOrders.value.map {
+            if (it.orderId == orderId) rejectedOrder else it
+        }
+        if (_activePaymentOrder.value?.orderId == orderId) {
+            _activePaymentOrder.value = rejectedOrder
+        }
+
+        coroutineScope.launch {
+            try {
+                cloudSyncEngine?.savePaymentOrderToCloud(rejectedOrder)
+            } catch (_: Exception) {}
+        }
+
+        val log = AuditLog(
+            adminUid = admin.uid,
+            action = "ADMIN_REJECTED_UPI_PAYMENT",
+            target = orderId,
+            reason = "Admin ${admin.displayName} rejected payment $orderId: $reason"
+        )
+        _auditLogs.value = listOf(log) + _auditLogs.value
+        return true
     }
 
     fun dismissActivePaymentOrder() {

@@ -60,7 +60,7 @@ jobs:
 
           if [ -n "$APP_APK" ] && [ -f "$APP_APK" ]; then
             echo "SUCCESS: Freshly built APK created from source code at: $APP_APK"
-            cp -v "$APP_APK" build-output/CincutVideoEditorPro-v1.0.3.apk
+            cp -v "$APP_APK" build-output/CincutVideoEditorPro-v1.1.0.apk
             cp -v "$APP_APK" build-output/CincutVideoEdittorPro-latest.apk
           else
             echo "CRITICAL BUILD FAILURE: No newly compiled APK was produced by Gradle!"
@@ -73,7 +73,7 @@ jobs:
       - name: Upload APKs as GitHub Artifacts (Instant Download)
         uses: actions/upload-artifact@v4
         with:
-          name: CincutVideoEditorPro-v1.0.3
+          name: CincutVideoEditorPro-v1.1.0
           path: build-output/*.apk
           retention-days: 60
 
@@ -82,27 +82,25 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: v1.0.3-${{ github.run_number }}
-          name: "Cincut Video Editor Pro Release v1.0.3 (Build #${{ github.run_number }})"
+          tag_name: v1.1.0-${{ github.run_number }}
+          name: "Cincut Video Editor Pro Release v1.1.0 (Build #${{ github.run_number }})"
           body: |
-            ### 🎬 Cincut Video Editor Pro v1.0.3 Official Production Release
+            ### 🎬 Cincut Video Editor Pro v1.1.0 Latest Production Release
 
-            Official CineCut Pro application (`com.cincut.pro.studio` v1.0.3, VersionCode 4) compiled freshly from source code. Includes all features discussed till now:
+            Official CineCut Pro application (`com.cincut.pro.studio` v1.1.0, VersionCode 5) compiled freshly from updated source code. Includes all new real features:
 
-            - 📱 **Direct Download APK**: [**CincutVideoEditorPro-v1.0.3.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.0.3-${{ github.run_number }}/CincutVideoEditorPro-v1.0.3.apk)
-            - 📱 **Latest Direct Link**: [**CincutVideoEdittorPro-latest.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.0.3-${{ github.run_number }}/CincutVideoEdittorPro-latest.apk)
+            - 📱 **Direct Download APK**: [**CincutVideoEditorPro-v1.1.0.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.1.0-${{ github.run_number }}/CincutVideoEditorPro-v1.1.0.apk)
+            - 📱 **Latest Direct Link**: [**CincutVideoEdittorPro-latest.apk**](https://github.com/robinisking3-byte/CincutVideoEdittorPro/releases/download/v1.1.0-${{ github.run_number }}/CincutVideoEdittorPro-latest.apk)
 
-            #### All Complete Features Included:
-            - **Official CineCut App**: Full multi-track video timeline, audio tracks, picture-in-picture, and real video rendering.
-            - **14 Professional Color Grading Filters**: Cinematic Gold, Teal & Orange, Noir B&W, Cyberpunk Neon, Warm Sunset, Retro VHS, Emerald Film, Tokyo Night, Pastel Dream, Bleach Bypass, Lomo Chrome, Cold Ice, Vintage Sepia, and Normal.
-            - **Live ZapUPI Payment Gateway**: Real ZapUPI merchant integration (`zapfe5c7f3c3967c502e85648e908153d54`) with dynamic QR code & 12-digit UTR verification.
-            - **Admin Dashboard**: Full administrative console with role management, festival promotions, and system metrics for designated admin (`robinisking3@gmail.com`).
-            - **CineRooms & CineLive**: Collaborative multi-user editing rooms and real-time M3U8 HLS streaming player.
-            - **Festival Celebrations & Offers**: Diwali, Holi, Navratri, and New Year festive discount themes, animations, and CineCoin rewards.
-            - **CineCoins Wallet**: Yellow daily coins & Blue AI coins with instant credit and wallet synchronization.
-            - **Community & Social Hub**: Friend search, direct messaging, user template marketplace, and project sharing.
-            - **Firebase Cloud Sync & FCM Notifications**: Cloud Firestore backup and background push notification receiver service.
-            - **AI Features**: Marked "Coming Soon" with alert notifications.
+            #### All Latest Features Included:
+            - **Real Clip Import & Gallery Export**: Real Android PhotoPicker & hardware-accelerated MediaCodec/MediaMuxer export directly to device Gallery (`Movies/CineCut`).
+            - **100% Real Editing Suite**: Non-mockup timeline, multi-track audio mixing, cut/split, text overlays, and 14 GPU shader color grading filters.
+            - **Full Friends System**: Real-time user discovery, friend requests, one-to-one chat, and project sharing.
+            - **Production Authentication**: Real Firebase Auth email/password validation and Google Sign-In with Credential Manager.
+            - **Direct UPI Payments (robintyagi@fam)**: Removed old ZapUPI; users pay directly to UPI ID `robintyagi@fam`, submit 12-digit UTR, and admin verifies & approves subscriptions in real-time.
+            - **Real Groq AI Integration (ChatGPT-like)**: Powered by `llama-3.3-70b-versatile` with dedicated AI Director, AI Caption Generator, and interactive conversational AI Chat.
+            - **Real FCM Push Notifications**: Background message handling and token synchronization.
+            - **Real Admin Stats & Live Analytics**: Real-time Firestore revenue, pending UTR audits, and user analytics.
           files: build-output/*.apk
           draft: false
           prerelease: false

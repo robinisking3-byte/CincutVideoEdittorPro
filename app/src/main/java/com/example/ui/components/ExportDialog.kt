@@ -29,6 +29,8 @@ fun ExportBottomSheet(
     onStartExport: (ExportSettings) -> Unit,
     onCancelExport: () -> Unit,
     onDismiss: () -> Unit,
+    onOpenGallery: (() -> Unit)? = null,
+    onShareVideo: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var selectedRes by remember { mutableStateOf(ExportResolution.FHD_1080P) }
@@ -135,9 +137,38 @@ fun ExportBottomSheet(
                         color = CineTextSecondary
                     )
 
-                    Button(
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (onOpenGallery != null) {
+                            Button(
+                                onClick = onOpenGallery,
+                                colors = ButtonDefaults.buttonColors(containerColor = CinePrimary),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.VideoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Open Gallery", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        if (onShareVideo != null) {
+                            Button(
+                                onClick = onShareVideo,
+                                colors = ButtonDefaults.buttonColors(containerColor = CineSecondary),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Share", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                            }
+                        }
+                    }
+
+                    OutlinedButton(
                         onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(containerColor = CineSuccess),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Done")

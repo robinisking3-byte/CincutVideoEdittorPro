@@ -16,10 +16,14 @@ android {
     applicationId = "com.cincut.pro.studio"
     minSdk = 24
     targetSdk = 36
-    versionCode = 4
-    versionName = "1.0.3"
+    versionCode = 5
+    versionName = "1.1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    buildConfigField("String", "GROQ_API_KEY", "\"\"")
+    buildConfigField("String", "FIREBASE_API_KEY", "\"AIzaSyCXFpqzck7YVQOhtLWdyZDAawNhxzU0Bng\"")
+    buildConfigField("String", "UPI_ID", "\"robintyagi@fam\"")
   }
 
   signingConfigs {

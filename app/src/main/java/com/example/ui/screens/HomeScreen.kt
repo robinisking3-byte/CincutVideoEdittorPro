@@ -43,6 +43,8 @@ fun HomeScreen(
     onNavigateToCoins: () -> Unit,
     onNavigateToAdmin: () -> Unit,
     onNavigateToFestivalOffers: () -> Unit = {},
+    onNavigateToAiCopilot: () -> Unit = {},
+    onNavigateToFriends: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentUser by repository.currentUser.collectAsState()
@@ -301,6 +303,82 @@ fun HomeScreen(
                             color = CineTextSecondary,
                             maxLines = 2
                         )
+                    }
+                }
+            }
+
+            // Quick Studio Hub Tiles (AI Copilot & Friends)
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // AI Copilot Tile
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = CineSurface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF8A2BE2).copy(alpha = 0.6f)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToAiCopilot() }
+                            .testTag("ai_copilot_home_tile")
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Brush.linearGradient(listOf(Color(0xFF8A2BE2), Color(0xFF00E5FF)))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                }
+                                Surface(shape = RoundedCornerShape(4.dp), color = Color(0xFF8A2BE2).copy(alpha = 0.2f)) {
+                                    Text("GROQ AI", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E5FF), modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                                }
+                            }
+                            Text("AI Copilot & Chat", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Director Cut & Subtitles", fontSize = 10.sp, color = CineTextSecondary)
+                        }
+                    }
+
+                    // Friends & Network Tile
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = CineSurface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CineTertiary.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToFriends() }
+                            .testTag("friends_home_tile")
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(CinePrimary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.People, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                }
+                                Surface(shape = RoundedCornerShape(4.dp), color = CineTertiary.copy(alpha = 0.2f)) {
+                                    Text("NETWORK", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CineTertiary, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                                }
+                            }
+                            Text("Friends & Chat", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Collaborate & Share", fontSize = 10.sp, color = CineTextSecondary)
+                        }
                     }
                 }
             }

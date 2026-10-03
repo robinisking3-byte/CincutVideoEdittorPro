@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 fun EditorScreen(
     timelineController: TimelineController,
     onBack: () -> Unit,
+    onNavigateAiCopilot: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -55,13 +56,67 @@ fun EditorScreen(
 
     val currentExportJob by exportEngine.currentJob.collectAsState()
 
-    // Real Android Zero-Permission Photo/Video Picker
+    // Real Android Zero-Permission Photo/Video Picker with metadata extraction
     val mediaPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
-            val fileName = uri.lastPathSegment?.substringAfterLast("/") ?: "Clip_${System.currentTimeMillis() % 10000}.mp4"
-            timelineController.addClipToTrack(TrackType.VIDEO, fileName, durationMs = 5000L, mediaUri = uri.toString())
+            val retriever = android.media.MediaMetadataRetriever()
+            var realDurationMs = 5000L
+            var detectedName = "Clip_${System.currentTimeMillis() % 10000}.mp4"
+            try {
+                retriever.setDataSource(context, uri)
+                val dur = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                if (dur != null && dur > 0) realDurationMs = dur
+                val title = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
+                if (!title.isNullOrBlank()) detectedName = title
+            } catch (_: Exception) {} finally {
+                try { retriever.release() } catch (_: Exception) {}
+            }
+            try {
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex >= 0) {
+                            val cName = cursor.getString(nameIndex)
+                            if (!cName.isNullOrBlank()) detectedName = cName
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+            timelineController.addClipToTrack(TrackType.VIDEO, detectedName, durationMs = realDurationMs, mediaUri = uri.toString())
+        }
+    }
+
+    // Real Audio / Music Picker from device storage
+    val audioPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val retriever = android.media.MediaMetadataRetriever()
+            var realDurationMs = 15000L
+            var audioName = "Audio_${System.currentTimeMillis() % 10000}.mp3"
+            try {
+                retriever.setDataSource(context, uri)
+                val dur = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                if (dur != null && dur > 0) realDurationMs = dur
+                val title = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
+                if (!title.isNullOrBlank()) audioName = title
+            } catch (_: Exception) {} finally {
+                try { retriever.release() } catch (_: Exception) {}
+            }
+            try {
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex >= 0) {
+                            val cName = cursor.getString(nameIndex)
+                            if (!cName.isNullOrBlank()) audioName = cName
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+            timelineController.addClipToTrack(TrackType.AUDIO, audioName, durationMs = realDurationMs, mediaUri = uri.toString())
         }
     }
 
@@ -382,6 +437,18 @@ fun EditorScreen(
                                     )
                                 }
                             )
+                            EditorActionChip(
+                                icon = Icons.Default.LibraryMusic,
+                                label = "Add Music",
+                                onClick = {
+                                    audioPickerLauncher.launch("audio/*")
+                                }
+                            )
+                            EditorActionChip(
+                                icon = Icons.Default.AutoAwesome,
+                                label = "AI Copilot",
+                                onClick = onNavigateAiCopilot
+                            )
                         }
                     }
                 }
@@ -406,12 +473,18 @@ fun EditorScreen(
         ExportBottomSheet(
             currentJob = currentExportJob,
             onStartExport = { settings ->
-                exportEngine.startExport(project, settings, coroutineScope)
+                exportEngine.startExport(project, settings, tracks, coroutineScope)
             },
             onCancelExport = { exportEngine.cancelExport() },
             onDismiss = {
                 exportEngine.clearCurrentJob()
                 showExportSheet = false
+            },
+            onOpenGallery = {
+                currentExportJob?.let { exportEngine.openInGallery(it) }
+            },
+            onShareVideo = {
+                currentExportJob?.let { exportEngine.shareExportedVideo(it) }
             }
         )
     }
